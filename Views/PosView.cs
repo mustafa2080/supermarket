@@ -39,6 +39,7 @@ internal sealed class PosView : UserControl
     private readonly Label          _lblFeedback;
     private readonly Label          _lblInvNum, _lblCashier, _lblTime;
     private readonly Panel          _payPanel;
+    private SplitContainer?         _mainSplit;
 
     public PosView()
     {
@@ -113,22 +114,14 @@ internal sealed class PosView : UserControl
             Dock          = DockStyle.Fill,
             Orientation   = Orientation.Vertical,
             SplitterWidth = 6,
-            BackColor     = Color.FromArgb(30, 30, 46),
-            Panel1MinSize = 400,
-            Panel2MinSize = 280
+            BackColor     = Color.FromArgb(30, 30, 46)
         };
+        _mainSplit = split;
         split.Panel1.Controls.Add(leftPanel);
         split.Panel2.Controls.Add(rightPanel);
 
-        // نحدد SplitterDistance بعد ما يعرف الـ Width الفعلي عشان نتجنب الـ exception
-        split.HandleCreated += (_, _) =>
-        {
-            int desired = split.Width - 320;
-            int min = split.Panel1MinSize;
-            int max = split.Width - split.Panel2MinSize - split.SplitterWidth;
-            if (desired >= min && desired <= max)
-                split.SplitterDistance = desired;
-        };
+        split.SizeChanged += (_, _) => UpdateMainSplitLayout();
+        split.Layout      += (_, _) => UpdateMainSplitLayout();
 
         var root = new TableLayoutPanel
         {
@@ -140,6 +133,45 @@ internal sealed class PosView : UserControl
         root.Controls.Add(topBar, 0, 0);
         root.Controls.Add(split,  0, 1);
         Controls.Add(root);
+
+        // نستخدم HandleCreated على this بدل BeginInvoke المباشر
+        // لأن الـ Handle لسه مش اتعمل في وقت الـ constructor
+        HandleCreated += (_, _) => BeginInvoke(new Action(UpdateMainSplitLayout));
+    }
+
+    private void UpdateMainSplitLayout()
+    {
+        if (_mainSplit is null || _mainSplit.Width <= 0) return;
+
+        try
+        {
+            const int p1Min = 400;
+            const int p2Min = 280;
+
+            // نضبط MinSizes هنا بأمان لأن الـ Width بقى له قيمة حقيقية
+            if (_mainSplit.Panel1MinSize != p1Min) _mainSplit.Panel1MinSize = p1Min;
+            if (_mainSplit.Panel2MinSize != p2Min) _mainSplit.Panel2MinSize = p2Min;
+
+            int min = p1Min;
+            int max = _mainSplit.Width - p2Min - _mainSplit.SplitterWidth;
+            if (max <= 0) return;
+
+            if (max < min)
+            {
+                _mainSplit.IsSplitterFixed = true;
+                return;
+            }
+
+            int desired     = _mainSplit.Width - 320;
+            int safeDistance = Math.Max(min, Math.Min(desired, max));
+
+            if (_mainSplit.SplitterDistance != safeDistance)
+                _mainSplit.SplitterDistance = safeDistance;
+        }
+        catch
+        {
+            // نتجاهل أي حالة عابرة أثناء أول layout
+        }
     }
 
     // ── شريط العنوان ─────────────────────────────────────────

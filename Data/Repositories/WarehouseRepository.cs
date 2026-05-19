@@ -1,4 +1,4 @@
-using Npgsql;
+﻿using Npgsql;
 using supermarket.Models;
 
 namespace supermarket.Data.Repositories;
@@ -355,7 +355,7 @@ internal class WarehouseRepository
         var num = "TRF-" + DateTime.Now.ToString("yyyyMMdd-HHmmss");
         const string sql = """
             INSERT INTO public.warehouse_transfers
-                (transfer_number, from_warehouse_id, to_warehouse_id, transfer_date, status, notes, created_by)
+                (transfer_number, from_warehouse, to_warehouse, transfer_date, status, notes, created_by)
             VALUES (@num, @from, @to, @dt, 'draft', @notes, @by)
             RETURNING id
             """;
@@ -375,14 +375,14 @@ internal class WarehouseRepository
         using var conn = DatabaseConnection.CreateConnection();
         const string sql = """
             SELECT t.id, t.transfer_number,
-                   t.from_warehouse_id, wf.name,
-                   t.to_warehouse_id,   wt.name,
+                   t.from_warehouse, wf.name,
+                   t.to_warehouse,   wt.name,
                    t.transfer_date, t.status,
                    COALESCE(t.notes,''),
                    COALESCE(uc.full_name,''), COALESCE(ua.full_name,'')
             FROM public.warehouse_transfers t
-            JOIN public.warehouses wf ON wf.id = t.from_warehouse_id
-            JOIN public.warehouses wt ON wt.id = t.to_warehouse_id
+            JOIN public.warehouses wf ON wf.id = t.from_warehouse
+            JOIN public.warehouses wt ON wt.id = t.to_warehouse
             LEFT JOIN public.users uc ON uc.id = t.created_by
             LEFT JOIN public.users ua ON ua.id = t.approved_by
             ORDER BY t.transfer_date DESC, t.id DESC
@@ -416,11 +416,11 @@ internal class WarehouseRepository
             SELECT tl.item_id, COALESCE(i.item_code,''), i.name_ar,
                    COALESCE(u.name_ar, u.name,''), tl.quantity,
                    COALESCE(sl.quantity, 0) AS stock_qty
-            FROM public.warehouse_transfer_lines tl
+            FROM public.transfer_lines tl
             JOIN public.items i ON i.id = tl.item_id
             LEFT JOIN public.units u ON u.id = i.unit_id
             LEFT JOIN public.warehouse_transfers t ON t.id = tl.transfer_id
-            LEFT JOIN public.stock_levels sl ON sl.item_id = tl.item_id AND sl.warehouse_id = t.from_warehouse_id
+            LEFT JOIN public.stock_levels sl ON sl.item_id = tl.item_id AND sl.warehouse_id = t.from_warehouse
             WHERE tl.transfer_id = @tid
             ORDER BY i.name_ar
             """;
@@ -450,14 +450,14 @@ internal class WarehouseRepository
         {
             // حذف القديم وإعادة إدراج
             using var del = new NpgsqlCommand(
-                "DELETE FROM public.warehouse_transfer_lines WHERE transfer_id = @tid", conn, tx);
+                "DELETE FROM public.transfer_lines WHERE transfer_id = @tid", conn, tx);
             del.Parameters.AddWithValue("tid", transferId);
             del.ExecuteNonQuery();
 
             foreach (var (itemId, qty) in lines.Where(l => l.qty > 0))
             {
                 const string ins = """
-                    INSERT INTO public.warehouse_transfer_lines (transfer_id, item_id, quantity)
+                    INSERT INTO public.transfer_lines (transfer_id, item_id, quantity)
                     VALUES (@tid, @item, @qty)
                     """;
                 using var cmd = new NpgsqlCommand(ins, conn, tx);
@@ -481,7 +481,7 @@ internal class WarehouseRepository
             // جلب بيانات التحويل
             int fromWh, toWh;
             using (var cmd = new NpgsqlCommand(
-                "SELECT from_warehouse_id, to_warehouse_id FROM public.warehouse_transfers WHERE id=@id", conn, tx))
+                "SELECT from_warehouse, to_warehouse FROM public.warehouse_transfers WHERE id=@id", conn, tx))
             {
                 cmd.Parameters.AddWithValue("id", transferId);
                 using var r = cmd.ExecuteReader();
@@ -493,7 +493,7 @@ internal class WarehouseRepository
             // جلب السطور
             var lines = new List<(int itemId, decimal qty)>();
             using (var cmd = new NpgsqlCommand(
-                "SELECT item_id, quantity FROM public.warehouse_transfer_lines WHERE transfer_id=@tid", conn, tx))
+                "SELECT item_id, quantity FROM public.transfer_lines WHERE transfer_id=@tid", conn, tx))
             {
                 cmd.Parameters.AddWithValue("tid", transferId);
                 using var r = cmd.ExecuteReader();
