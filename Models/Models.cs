@@ -79,10 +79,21 @@ public class Customer
 // ── مجموعة الأصناف ───────────────────────────────────────────
 public class ItemGroup
 {
-    public int    Id       { get; set; }
-    public string Name     { get; set; } = string.Empty;
-    public string NameAr   { get; set; } = string.Empty;
-    public bool   IsActive { get; set; } = true;
+    public int    Id        { get; set; }
+    public string Name      { get; set; } = string.Empty;
+    public string NameAr    { get; set; } = string.Empty;
+    public bool   IsActive  { get; set; } = true;
+    public int    ItemCount { get; set; }   // عدد الأصناف المرتبطة
+}
+
+// ── نوع الصنف ────────────────────────────────────────────────
+public class ItemType
+{
+    public int    Id        { get; set; }
+    public string Name      { get; set; } = string.Empty;
+    public string NameAr    { get; set; } = string.Empty;
+    public bool   IsActive  { get; set; } = true;
+    public int    ItemCount { get; set; }   // عدد الأصناف المرتبطة
 }
 
 // ── وحدة القياس ──────────────────────────────────────────────

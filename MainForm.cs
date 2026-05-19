@@ -222,7 +222,13 @@ public sealed class MainForm : Form
 
         if (title == "الأصناف" || title == "بطاقة الصنف")
         {
-            SetContent(new ItemCardView());
+            SetContent(new ItemsView());
+            return;
+        }
+
+        if (title == "الإعدادات")
+        {
+            SetContent(new CategoriesView());
             return;
         }
 
