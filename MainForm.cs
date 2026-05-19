@@ -220,6 +220,12 @@ public sealed class MainForm : Form
     {
         ShowSection(title, description);
 
+        if (title == "المبيعات")
+        {
+            SetContent(new PosView());
+            return;
+        }
+
         if (title == "الأصناف" || title == "بطاقة الصنف")
         {
             SetContent(new ItemsView());
@@ -234,7 +240,24 @@ public sealed class MainForm : Form
 
         if (title == "المشتريات")
         {
-            SetContent(new SuppliersView());
+            // عرض تاب مزدوج: الموردين + فواتير الشراء
+            var tabCtrl = new TabControl { Dock = DockStyle.Fill, Font = AppTheme.BodyFont };
+            var tabInvoices  = new TabPage("📄 فواتير الشراء")  { BackColor = AppTheme.Surface };
+            var tabReturns   = new TabPage("🔄 المرتجعات")       { BackColor = AppTheme.Surface };
+            var tabSuppliers = new TabPage("🏭 الموردين")        { BackColor = AppTheme.Surface };
+
+            var invView = new PurchaseInvoicesView { Dock = DockStyle.Fill };
+            var retView = new PurchaseReturnsView  { Dock = DockStyle.Fill };
+            var supView = new SuppliersView        { Dock = DockStyle.Fill };
+
+            tabInvoices.Controls.Add(invView);
+            tabReturns.Controls.Add(retView);
+            tabSuppliers.Controls.Add(supView);
+
+            tabCtrl.TabPages.Add(tabInvoices);
+            tabCtrl.TabPages.Add(tabReturns);
+            tabCtrl.TabPages.Add(tabSuppliers);
+            SetContent(tabCtrl);
             return;
         }
 

@@ -1,0 +1,81 @@
+    // ── اللوح الأيسر: الإجماليات + الدفع ────────────────────
+    private Control BuildRightPanel()
+    {
+        var p = new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(22, 22, 35), Padding = new Padding(8) };
+        var layout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 4, BackColor = Color.Transparent };
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 130F));
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 52F));
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 110F));
+        layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+        layout.Controls.Add(BuildTotalsPanel(),    0, 0);
+        layout.Controls.Add(BuildPayMethodPanel(), 0, 1);
+        layout.Controls.Add(BuildPaidPanel(),      0, 2);
+        layout.Controls.Add(BuildActionPanel(),    0, 3);
+        p.Controls.Add(layout);
+        return p;
+    }
+
+    private Control BuildTotalsPanel()
+    {
+        var card = new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(38, 38, 55), Padding = new Padding(10) };
+        _lblSubtotal.Text = "0.00"; _lblSubtotal.AutoSize = true; _lblSubtotal.ForeColor = Color.White;        _lblSubtotal.Font = AppTheme.BodyFont;
+        _lblDiscount.Text = "0.00"; _lblDiscount.AutoSize = true; _lblDiscount.ForeColor = Color.Orange;       _lblDiscount.Font = AppTheme.BodyFont;
+        _lblTax.Text      = "0.00"; _lblTax.AutoSize      = true; _lblTax.ForeColor      = Color.LightBlue;   _lblTax.Font      = AppTheme.BodyFont;
+        _lblNet.Text      = "0.00"; _lblNet.AutoSize      = true; _lblNet.ForeColor      = Color.Gold;         _lblNet.Font      = new Font("Tahoma", 14F, FontStyle.Bold);
+        var tbl = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 4 };
+        tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 55F));
+        tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 45F));
+        for (int i = 0; i < 4; i++) tbl.RowStyles.Add(new RowStyle(SizeType.Percent, 25F));
+        Label Lbl(string t, bool big = false) => new Label { Text = t, AutoSize = true, ForeColor = big ? Color.Gold : Color.Silver, Font = big ? new Font("Tahoma", 13F, FontStyle.Bold) : AppTheme.BodyFont };
+        tbl.Controls.Add(Lbl("المجموع الفرعي:"),       0, 0); tbl.Controls.Add(_lblSubtotal, 1, 0);
+        tbl.Controls.Add(Lbl("الخصم:"),                0, 1); tbl.Controls.Add(_lblDiscount, 1, 1);
+        tbl.Controls.Add(Lbl("الضريبة:"),              0, 2); tbl.Controls.Add(_lblTax,      1, 2);
+        tbl.Controls.Add(Lbl("الصافي:", big: true),    0, 3); tbl.Controls.Add(_lblNet,      1, 3);
+        card.Controls.Add(tbl);
+        return card;
+    }
+
+    private Control BuildPayMethodPanel()
+    {
+        var p    = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent, Padding = new Padding(0, 6, 0, 0) };
+        var flow = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight, WrapContents = false };
+        void StylePayBtn(Button b, Color col) { b.Width = 85; b.Height = 38; b.Font = new Font("Tahoma", 10F, FontStyle.Bold); b.FlatStyle = FlatStyle.Flat; b.BackColor = col; b.ForeColor = Color.White; b.Margin = new Padding(4, 0, 4, 0); b.FlatAppearance.BorderSize = 0; b.FlatAppearance.BorderColor = Color.Gold; }
+        StylePayBtn(_btnCash,   Color.FromArgb(34, 120, 60));
+        StylePayBtn(_btnVisa,   Color.FromArgb(30, 80, 160));
+        StylePayBtn(_btnCredit, Color.FromArgb(140, 60, 20));
+        flow.Controls.Add(_btnCash); flow.Controls.Add(_btnVisa); flow.Controls.Add(_btnCredit);
+        p.Controls.Add(flow);
+        return p;
+    }
+
+    private Control BuildPaidPanel()
+    {
+        var card = new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(38, 38, 55), Padding = new Padding(8, 6, 8, 6) };
+        var tbl  = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 3 };
+        tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 48F));
+        tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 52F));
+        for (int i = 0; i < 3; i++) tbl.RowStyles.Add(new RowStyle(SizeType.Percent, 33.3F));
+        _txtInvDiscount.Width = 100; _txtInvDiscount.BackColor = Color.FromArgb(50, 50, 70); _txtInvDiscount.ForeColor = Color.Orange;    _txtInvDiscount.Font = AppTheme.BodyFont; _txtInvDiscount.BorderStyle = BorderStyle.FixedSingle; _txtInvDiscount.Text = "0";
+        _txtPaid.Width        = 120; _txtPaid.BackColor        = Color.FromArgb(30, 60, 30); _txtPaid.ForeColor        = Color.LightGreen; _txtPaid.Font        = new Font("Tahoma", 12F, FontStyle.Bold); _txtPaid.BorderStyle = BorderStyle.FixedSingle;
+        _lblChange.AutoSize   = true; _lblChange.Text = "0.00"; _lblChange.ForeColor = Color.Gold; _lblChange.Font = new Font("Tahoma", 13F, FontStyle.Bold);
+        Label Lbl(string t, Color c) => new Label { Text = t, AutoSize = true, ForeColor = c, Font = new Font("Tahoma", 10F, FontStyle.Bold), Margin = new Padding(0, 6, 4, 0) };
+        tbl.Controls.Add(Lbl("خصم الفاتورة:", Color.Orange),     0, 0); tbl.Controls.Add(_txtInvDiscount, 1, 0);
+        tbl.Controls.Add(Lbl("المدفوع:",       Color.LightGreen), 0, 1); tbl.Controls.Add(_txtPaid,        1, 1);
+        tbl.Controls.Add(Lbl("الباقي:",        Color.Gold),       0, 2); tbl.Controls.Add(_lblChange,      1, 2);
+        card.Controls.Add(tbl);
+        return card;
+    }
+
+    private Control BuildActionPanel()
+    {
+        var p = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent, Padding = new Padding(0, 8, 0, 0) };
+        void StyleBtn(Button b, Color col, int h = 48) { b.Dock = DockStyle.Top; b.Height = h; b.Font = new Font("Tahoma", 11F, FontStyle.Bold); b.FlatStyle = FlatStyle.Flat; b.BackColor = col; b.ForeColor = Color.White; b.Margin = new Padding(0, 0, 0, 6); b.FlatAppearance.BorderSize = 0; }
+        StyleBtn(_btnPay,    Color.FromArgb(34, 130, 60));
+        StyleBtn(_btnHold,   Color.FromArgb(100, 80, 30));
+        StyleBtn(_btnResume, Color.FromArgb(40, 80, 130), 38);
+        p.Controls.Add(_btnResume);
+        p.Controls.Add(_btnHold);
+        p.Controls.Add(_btnPay);
+        return p;
+    }
+
