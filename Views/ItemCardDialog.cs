@@ -167,8 +167,9 @@ internal sealed class ItemCardDialog : Form
         var panel = new TableLayoutPanel { ColumnCount = 2, Dock = DockStyle.Top, Height = 36 };
         panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
         panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 40F));
-        var checkBtn = new Button { Text = "✔", Dock = DockStyle.Fill, ToolTipText = "تحقق من تكرار الباركود" };
+        var checkBtn = new Button { Text = "✔", Dock = DockStyle.Fill };
         AppTheme.StyleSecondaryButton(checkBtn);
+        new ToolTip().SetToolTip(checkBtn, "تحقق من تكرار الباركود");
         checkBtn.Click += (_, _) => CheckBarcode();
         panel.Controls.Add(_barcodeBox, 0, 0);
         panel.Controls.Add(checkBtn, 1, 0);

@@ -114,3 +114,32 @@ public class Warehouse
     public bool   IsDefault { get; set; }
     public bool   IsActive  { get; set; } = true;
 }
+
+// ── سطر كشف حساب المورد ─────────────────────────────────────
+public class SupplierStatement
+{
+    public string   InvoiceNumber { get; set; } = string.Empty;
+    public DateTime InvoiceDate   { get; set; }
+    public decimal  NetTotal      { get; set; }
+    public decimal  PaidAmount    { get; set; }
+    public decimal  Remaining     { get; set; }
+    public string   PaymentMethod { get; set; } = string.Empty;
+    public string   Status        { get; set; } = string.Empty;
+    public string   Notes         { get; set; } = string.Empty;
+
+    public string StatusAr => Status switch
+    {
+        "approved"  => "✅ معتمدة",
+        "draft"     => "📝 مسودة",
+        "cancelled" => "❌ ملغية",
+        _           => Status
+    };
+
+    public string PaymentAr => PaymentMethod switch
+    {
+        "cash"   => "نقدي",
+        "credit" => "آجل",
+        "check"  => "شيك",
+        _        => PaymentMethod
+    };
+}

@@ -6,6 +6,76 @@ namespace supermarket.Data.Repositories;
 /// <summary>Repository للموردين والعملاء</summary>
 internal class SupplierRepository
 {
+    // ── رصيد المورد (إجمالي المستحق) ───────────────────────
+    public decimal GetBalance(int supplierId)
+    {
+        using var conn = DatabaseConnection.CreateConnection();
+        const string sql = """
+            SELECT COALESCE(SUM(remaining), 0)
+            FROM public.purchase_invoices
+            WHERE supplier_id = @id AND status = 'approved'
+            """;
+        using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("id", supplierId);
+        return Convert.ToDecimal(cmd.ExecuteScalar());
+    }
+
+    // ── كشف حساب المورد ─────────────────────────────────────
+    public List<SupplierStatement> GetStatement(int supplierId, DateTime? from = null, DateTime? to = null)
+    {
+        using var conn = DatabaseConnection.CreateConnection();
+        const string sql = """
+            SELECT invoice_number, invoice_date, net_total, paid_amount, remaining,
+                   payment_method, status, notes
+            FROM public.purchase_invoices
+            WHERE supplier_id = @id
+              AND (@from IS NULL OR invoice_date >= @from)
+              AND (@to   IS NULL OR invoice_date <= @to)
+            ORDER BY invoice_date DESC, id DESC
+            """;
+        using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("id",   supplierId);
+        cmd.Parameters.AddWithValue("from", (object?)from ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("to",   (object?)to   ?? DBNull.Value);
+        using var r = cmd.ExecuteReader();
+        var list = new List<SupplierStatement>();
+        while (r.Read())
+            list.Add(new SupplierStatement
+            {
+                InvoiceNumber = r.GetString(0),
+                InvoiceDate   = r.GetDateTime(1),
+                NetTotal      = r.GetDecimal(2),
+                PaidAmount    = r.GetDecimal(3),
+                Remaining     = r.GetDecimal(4),
+                PaymentMethod = r.GetString(5),
+                Status        = r.GetString(6),
+                Notes         = r.IsDBNull(7) ? "" : r.GetString(7)
+            });
+        return list;
+    }
+
+    // ── تحقق من تكرار الاسم ─────────────────────────────────
+    public bool NameExists(string name, int excludeId = 0)
+    {
+        using var conn = DatabaseConnection.CreateConnection();
+        const string sql = "SELECT COUNT(1) FROM public.suppliers WHERE name = @name AND id <> @ex";
+        using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("name", name);
+        cmd.Parameters.AddWithValue("ex",   excludeId);
+        return Convert.ToInt32(cmd.ExecuteScalar()) > 0;
+    }
+
+    // ── تفعيل / تعطيل ───────────────────────────────────────
+    public void SetActive(int id, bool active)
+    {
+        using var conn = DatabaseConnection.CreateConnection();
+        using var cmd  = new NpgsqlCommand(
+            "UPDATE public.suppliers SET is_active = @active WHERE id = @id", conn);
+        cmd.Parameters.AddWithValue("active", active);
+        cmd.Parameters.AddWithValue("id",     id);
+        cmd.ExecuteNonQuery();
+    }
+
     public List<Supplier> GetAll(bool activeOnly = true)
     {
         using var conn = DatabaseConnection.CreateConnection();

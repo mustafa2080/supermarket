@@ -232,6 +232,12 @@ public sealed class MainForm : Form
             return;
         }
 
+        if (title == "المشتريات")
+        {
+            SetContent(new SuppliersView());
+            return;
+        }
+
         if (title == "المستخدمون" || title == "إدارة المستخدمين")
         {
             if (!SessionContext.IsAdmin)

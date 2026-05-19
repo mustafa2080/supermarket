@@ -26,3 +26,4 @@ D:\supermarket\supermarket\bin\Debug\net9.0-windows\zxing.dll
 D:\supermarket\supermarket\bin\Debug\net9.0-windows\ZXing.Windows.Compatibility.dll
 D:\supermarket\supermarket\obj\Debug\net9.0-windows\supermarket.csproj.AssemblyReference.cache
 D:\supermarket\supermarket\obj\Debug\net9.0-windows\supermar.2D1CECB3.Up2Date
+D:\supermarket\supermarket\obj\Debug\net9.0-windows\supermarket.sourcelink.json
