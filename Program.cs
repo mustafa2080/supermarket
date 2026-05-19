@@ -1,3 +1,4 @@
+using supermarket.Data;
 using supermarket.Views;
 
 namespace supermarket;
@@ -9,15 +10,26 @@ static class Program
     {
         ApplicationConfiguration.Initialize();
 
-        // فتح شاشة تسجيل الدخول أولاً
-        using var login = new LoginForm();
-        if (login.ShowDialog() != DialogResult.OK)
+        // ── تحقق من الاتصال بقاعدة البيانات أولاً ──────────────
+        if (!DatabaseConnection.TestConnection(out string dbError))
         {
-            // المستخدم أغلق الشاشة بدون تسجيل دخول
+            MessageBox.Show(
+                $"❌ تعذّر الاتصال بقاعدة البيانات:\n\n{dbError}\n\n" +
+                "تأكد من:\n" +
+                "• تشغيل PostgreSQL\n" +
+                "• صحة كلمة المرور في DatabaseConnection.cs\n" +
+                "• وجود قاعدة بيانات اسمها 'supermarket'",
+                "خطأ في الاتصال",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Error);
             return;
         }
 
-        // تسجيل الدخول نجح — افتح الشاشة الرئيسية
+        // فتح شاشة تسجيل الدخول
+        using var login = new LoginForm();
+        if (login.ShowDialog() != DialogResult.OK)
+            return;
+
         Application.Run(new MainForm());
     }
 }

@@ -17,7 +17,7 @@ internal static class DatabaseConnection
             Port     = 5432,
             Database = "supermarket",
             Username = "postgres",
-            Password = "postgres",          // يُغيَّر من ملف الإعدادات
+            Password = "123456",             // يُغيَّر من ملف الإعدادات
             Pooling  = true,
             MinPoolSize = 1,
             MaxPoolSize = 20,

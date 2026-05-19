@@ -15,7 +15,8 @@ internal sealed class PosView : UserControl
     // ── بيانات الجلسة ────────────────────────────────────────
     private readonly SalesRepository _repo   = new();
     private Warehouse  _warehouse            = new() { Id = 1, Name = "الرئيسي" };
-    private List<Customer> _customers        = new();
+    private List<Customer>  _customers       = new();
+    private List<Promotion> _activePromotions = new();   // TASK-016
     private readonly List<HoldInvoice> _held = new();
 
     // ── بيانات الفاتورة الحالية ──────────────────────────────
@@ -86,8 +87,9 @@ internal sealed class PosView : UserControl
     {
         try
         {
-            _warehouse = _repo.GetDefaultWarehouse() ?? _warehouse;
-            _customers = _repo.GetCustomers();
+            _warehouse        = _repo.GetDefaultWarehouse() ?? _warehouse;
+            _customers        = _repo.GetCustomers();
+            _activePromotions = new PromotionRepository().GetActive(); // TASK-016
         }
         catch { /* يعمل بدون DB في وضع التصميم */ }
     }
@@ -108,16 +110,25 @@ internal sealed class PosView : UserControl
 
         var split = new SplitContainer
         {
-            Dock            = DockStyle.Fill,
-            Orientation     = Orientation.Vertical,
-            SplitterWidth   = 6,
-            SplitterDistance = 700,
-            BackColor       = Color.FromArgb(30, 30, 46),
-            Panel1MinSize   = 400,
-            Panel2MinSize   = 280
+            Dock          = DockStyle.Fill,
+            Orientation   = Orientation.Vertical,
+            SplitterWidth = 6,
+            BackColor     = Color.FromArgb(30, 30, 46),
+            Panel1MinSize = 400,
+            Panel2MinSize = 280
         };
         split.Panel1.Controls.Add(leftPanel);
         split.Panel2.Controls.Add(rightPanel);
+
+        // نحدد SplitterDistance بعد ما يعرف الـ Width الفعلي عشان نتجنب الـ exception
+        split.HandleCreated += (_, _) =>
+        {
+            int desired = split.Width - 320;
+            int min = split.Panel1MinSize;
+            int max = split.Width - split.Panel2MinSize - split.SplitterWidth;
+            if (desired >= min && desired <= max)
+                split.SplitterDistance = desired;
+        };
 
         var root = new TableLayoutPanel
         {
@@ -562,11 +573,12 @@ internal sealed class PosView : UserControl
     // ══════════════════════════════════════════════════════════
     private void AddItemToCart(Item item)
     {
-        // لو الصنف موجود → زود الكمية
+        // لو الصنف موجود → زود الكمية وأعد حساب العرض
         var existing = _lines.FirstOrDefault(l => l.ItemId == item.Id);
         if (existing is not null)
         {
             existing.Quantity++;
+            ApplyPromotion(existing, item);
             RefreshCartRow(_lines.IndexOf(existing));
             RecalcTotals();
             ShowSuccess($"✔ {item.NameAr} — الكمية: {existing.Quantity}");
@@ -574,10 +586,7 @@ internal sealed class PosView : UserControl
         }
 
         if (item.CurrentStock <= 0)
-        {
             ShowError($"⚠ {item.NameAr} — لا يوجد رصيد في المستودع!");
-            // نسمح بالإضافة مع تحذير (يمكن تغييره لمنع الإضافة)
-        }
 
         var line = new SalesInvoiceLine
         {
@@ -590,10 +599,40 @@ internal sealed class PosView : UserControl
             TaxRate   = item.TaxRate,
             StockQty  = item.CurrentStock
         };
+
+        // تطبيق أفضل عرض متاح — TASK-016
+        ApplyPromotion(line, item);
+
         _lines.Add(line);
         AddCartRow(line);
         RecalcTotals();
-        ShowSuccess($"✔ أُضيف: {item.NameAr}");
+
+        string msg = $"✔ أُضيف: {item.NameAr}";
+        if (!string.IsNullOrEmpty(line.PromotionName))
+            msg += $"  🎁 {line.PromotionName}";
+        ShowSuccess(msg);
+    }
+
+    /// <summary>تطبيق أفضل عرض نشط على سطر — يُحدِّث Discount وPromotionId</summary>
+    private void ApplyPromotion(SalesInvoiceLine line, Item item)
+    {
+        var result = PromotionEngine.Apply(item, line.Quantity, _activePromotions);
+        if (result is not null)
+        {
+            line.Discount      = result.DiscountAmount;
+            line.PromotionId   = result.PromotionId;
+            line.PromotionName = result.Description;
+        }
+        else
+        {
+            // إزالة أي عرض سابق لو لم ينطبق بعد تغيير الكمية
+            if (line.PromotionId.HasValue)
+            {
+                line.Discount      = 0;
+                line.PromotionId   = null;
+                line.PromotionName = string.Empty;
+            }
+        }
     }
 
     private void AddCartRow(SalesInvoiceLine l)

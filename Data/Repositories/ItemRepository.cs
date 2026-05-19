@@ -212,6 +212,18 @@ internal class ItemRepository
         return list;
     }
 
+    public List<Supplier> GetSuppliers()
+    {
+        using var conn = DatabaseConnection.CreateConnection();
+        using var cmd  = new NpgsqlCommand(
+            "SELECT id, COALESCE(code,''), name FROM public.suppliers WHERE is_active = TRUE ORDER BY name", conn);
+        using var r = cmd.ExecuteReader();
+        var list = new List<Supplier>();
+        while (r.Read()) list.Add(new Supplier
+            { Id = r.GetInt32(0), Code = r.GetString(1), Name = r.GetString(2) });
+        return list;
+    }
+
     public List<Unit> GetUnits()
     {
         using var conn = DatabaseConnection.CreateConnection();

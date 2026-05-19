@@ -1,363 +1,603 @@
-using System.Drawing;
 using supermarket.Services;
 using supermarket.Theme;
 using supermarket.Views;
 
 namespace supermarket;
 
+/// <summary>الشاشة الرئيسية — Sidebar يمين ثابت + Header + Content</summary>
 public sealed class MainForm : Form
 {
-    private Label _pageTitle = null!;
-    private Label _pageDescription = null!;
-    private Panel _contentHost = null!;
-    private readonly StatusStrip _statusStrip;
+    // ── عناصر UI ──────────────────────────────────────────────
+    private Panel  _contentHost  = null!;
+    private Label  _pageTitle    = null!;
+    private Label  _clockLabel   = null!;
+    private Label  _dateLabel    = null!;
+    private Panel? _activeSideBtn;
+    private readonly System.Windows.Forms.Timer _clock;
+
+    // ── ألوان ─────────────────────────────────────────────────
+    private static readonly Color SidebarBg     = ColorTranslator.FromHtml("#0D2137");
+    private static readonly Color SidebarActive = ColorTranslator.FromHtml("#1B4F72");
+    private static readonly Color SidebarHover  = ColorTranslator.FromHtml("#163354");
+    private static readonly Color SidebarText   = Color.FromArgb(210, 230, 255);
+    private static readonly Color SidebarMuted  = Color.FromArgb(100, 140, 180);
+    private static readonly Color AccentGold    = ColorTranslator.FromHtml("#F39C12");
+    private static readonly Color HeaderBg      = ColorTranslator.FromHtml("#1B4F72");
+    private static readonly Color ContentBg     = ColorTranslator.FromHtml("#EEF2F7");
+
+    // ── وحدات التنقل ──────────────────────────────────────────
+    private record NavItem(string Icon, string Title, string Desc);
+    private static readonly NavItem[] Nav =
+    {
+        new("🏠", "الرئيسية",   "لوحة المتابعة والإحصائيات"),
+        new("🛒", "المبيعات",   "نقطة البيع والعملاء والعروض والمرتجعات"),
+        new("📦", "المشتريات",  "الموردين وفواتير الشراء والمرتجعات"),
+        new("🏪", "الأصناف",    "بطاقة الصنف وإدارة البيانات الرئيسية"),
+        new("📊", "المخزون",    "الأرصدة والجرد والتحويلات والتنبيهات"),
+        new("💰", "الخزينة",    "الورديات وسندات القبض والصرف"),
+        new("🏷️", "التسعير",    "إدارة الأسعار وتحديثها الجماعي"),
+        new("📷", "الباركود",   "طباعة ملصقات الباركود وتوليد QR"),
+        new("📈", "التقارير",   "تقارير المبيعات والمخزون والربحية"),
+        new("⚙️", "الإعدادات",  "البيانات الأساسية والإعدادات العامة"),
+    };
 
     public MainForm()
     {
-        Text = "Smart Market ERP";
-        StartPosition = FormStartPosition.CenterScreen;
-        MinimumSize = new Size(1200, 760);
-        WindowState = FormWindowState.Maximized;
-        BackColor = AppTheme.Background;
-        Font = AppTheme.BodyFont;
-        RightToLeft = RightToLeft.Yes;
-        RightToLeftLayout = true;
+        Text              = "Smart Market ERP";
+        StartPosition     = FormStartPosition.CenterScreen;
+        MinimumSize       = new Size(1280, 720);
+        WindowState       = FormWindowState.Maximized;
+        BackColor         = SidebarBg;
+        Font              = AppTheme.BodyFont;
+        // لا نضع RTL على الـ Form — نتحكم يدوياً بكل عنصر
+        RightToLeft       = RightToLeft.No;
+        RightToLeftLayout = false;
 
-        var mainLayout = new TableLayoutPanel
-        {
-            Dock = DockStyle.Fill,
-            ColumnCount = 1,
-            RowCount = 4,
-            BackColor = AppTheme.Background
-        };
-        mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 84F));
-        mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 72F));
-        mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
-        mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 30F));
+        BuildLayout();
 
-        mainLayout.Controls.Add(BuildHeader(), 0, 0);
-        mainLayout.Controls.Add(BuildNavigationBar(), 0, 1);
-        mainLayout.Controls.Add(BuildBody(), 0, 2);
+        _clock = new System.Windows.Forms.Timer { Interval = 1000 };
+        _clock.Tick += (_, _) => TickClock();
+        _clock.Start();
+        TickClock();
 
-        _statusStrip = BuildStatusBar();
-        mainLayout.Controls.Add(_statusStrip, 0, 3);
-
-        Controls.Add(mainLayout);
-        InitializeDashboard();
+        NavigateTo(Nav[0]);
     }
 
-    private Control BuildHeader()
+    // ════════════════════════════════════════════════════════
+    //  بناء الهيكل الرئيسي — Dock بدل TableLayout عشان RTL
+    // ════════════════════════════════════════════════════════
+    private void BuildLayout()
     {
-        var header = new Panel
+        // Sidebar ثابت على اليمين
+        var sidebar = BuildSidebar();
+        sidebar.Dock  = DockStyle.Right;
+        sidebar.Width = 240;
+
+        // المنطقة الرئيسية تملأ الباقي
+        var mainArea = BuildMainArea();
+        mainArea.Dock = DockStyle.Fill;
+
+        // نضيف الـ Fill أولاً ثم الـ Right
+        Controls.Add(mainArea);
+        Controls.Add(sidebar);
+    }
+
+    // ════════════════════════════════════════════════════════
+    //  SIDEBAR
+    // ════════════════════════════════════════════════════════
+    private Control BuildSidebar()
+    {
+        var sidebar = new Panel
         {
-            Dock = DockStyle.Fill,
-            BackColor = AppTheme.Primary,
-            Padding = new Padding(24, 18, 24, 18)
+            BackColor = SidebarBg,
+            Width     = 240
+        };
+
+        // شريط ذهبي أقصى اليمين
+        var gold = new Panel
+        {
+            Dock      = DockStyle.Right,
+            Width     = 4,
+            BackColor = AccentGold
+        };
+
+        // ── Logo ─────────────────────────────────────────────
+        var logo = new Panel
+        {
+            Dock      = DockStyle.Top,
+            Height    = 100,
+            BackColor = ColorTranslator.FromHtml("#091829"),
+            Padding   = new Padding(0, 14, 0, 10)
+        };
+        logo.Controls.Add(new Label
+        {
+            Text      = "🛒",
+            Font      = new Font("Segoe UI Emoji", 22F),
+            ForeColor = Color.White,
+            Dock      = DockStyle.Top,
+            Height    = 36,
+            TextAlign = ContentAlignment.MiddleCenter
+        });
+        logo.Controls.Add(new Label
+        {
+            Text      = "Smart Market ERP",
+            Font      = new Font("Tahoma", 11F, FontStyle.Bold),
+            ForeColor = Color.White,
+            Dock      = DockStyle.Top,
+            Height    = 24,
+            TextAlign = ContentAlignment.MiddleCenter
+        });
+        logo.Controls.Add(new Label
+        {
+            Text      = "نظام إدارة السوبر ماركت",
+            Font      = new Font("Tahoma", 8F),
+            ForeColor = SidebarMuted,
+            Dock      = DockStyle.Fill,
+            TextAlign = ContentAlignment.TopCenter
+        });
+
+        // ── User Info ─────────────────────────────────────────
+        var userPanel = new Panel
+        {
+            Dock      = DockStyle.Top,
+            Height    = 64,
+            BackColor = ColorTranslator.FromHtml("#0F2840"),
+            Padding   = new Padding(14, 10, 14, 10)
+        };
+
+        var userAvatar = new Label
+        {
+            Text      = "👤",
+            Font      = new Font("Segoe UI Emoji", 16F),
+            ForeColor = Color.White,
+            Dock      = DockStyle.Right,
+            Width     = 36,
+            TextAlign = ContentAlignment.MiddleCenter
+        };
+        var userInfo = new Panel
+        {
+            Dock      = DockStyle.Fill,
+            BackColor = Color.Transparent
+        };
+        userInfo.Controls.Add(new Label
+        {
+            Text      = SessionContext.RoleAr,
+            Font      = new Font("Tahoma", 8F),
+            ForeColor = Color.FromArgb(140, 185, 230),
+            Dock      = DockStyle.Bottom,
+            Height    = 18,
+            TextAlign = ContentAlignment.MiddleRight
+        });
+        userInfo.Controls.Add(new Label
+        {
+            Text      = SessionContext.DisplayName,
+            Font      = new Font("Tahoma", 10F, FontStyle.Bold),
+            ForeColor = Color.White,
+            Dock      = DockStyle.Fill,
+            TextAlign = ContentAlignment.MiddleRight
+        });
+        userPanel.Controls.Add(userInfo);
+        userPanel.Controls.Add(userAvatar);
+
+        // ── Nav Label ─────────────────────────────────────────
+        var navSectionLabel = new Label
+        {
+            Text      = "  القائمة الرئيسية",
+            Font      = new Font("Tahoma", 7.5F, FontStyle.Bold),
+            ForeColor = SidebarMuted,
+            Dock      = DockStyle.Top,
+            Height    = 30,
+            TextAlign = ContentAlignment.MiddleRight,
+            Padding   = new Padding(0, 0, 14, 0),
+            BackColor = SidebarBg
+        };
+
+        // ── Nav Buttons ───────────────────────────────────────
+        var navScroll = new Panel
+        {
+            Dock       = DockStyle.Fill,
+            BackColor  = SidebarBg,
+            AutoScroll = false
+        };
+
+        var navFlow = new FlowLayoutPanel
+        {
+            Dock          = DockStyle.Fill,
+            FlowDirection = FlowDirection.TopDown,
+            WrapContents  = false,
+            BackColor     = SidebarBg,
+            Padding       = new Padding(0, 4, 0, 4),
+            AutoScroll    = false
+        };
+
+        foreach (var item in Nav)
+            navFlow.Controls.Add(CreateNavButton(item));
+
+        navScroll.Controls.Add(navFlow);
+
+        // ── Logout ────────────────────────────────────────────
+        var logoutWrap = new Panel
+        {
+            Dock      = DockStyle.Bottom,
+            Height    = 52,
+            BackColor = ColorTranslator.FromHtml("#091829"),
+            Padding   = new Padding(12, 10, 12, 10)
+        };
+        var logoutBtn = new Button
+        {
+            Text      = "🔓   تسجيل الخروج",
+            Dock      = DockStyle.Fill,
+            Font      = new Font("Tahoma", 9.5F),
+            ForeColor = Color.FromArgb(255, 120, 120),
+            BackColor = Color.FromArgb(50, 20, 20),
+            FlatStyle = FlatStyle.Flat,
+            Cursor    = Cursors.Hand,
+            TextAlign = ContentAlignment.MiddleCenter
+        };
+        logoutBtn.FlatAppearance.BorderColor = Color.FromArgb(100, 50, 50);
+        logoutBtn.FlatAppearance.BorderSize  = 1;
+        logoutBtn.MouseEnter += (_, _) => logoutBtn.BackColor = Color.FromArgb(90, 30, 30);
+        logoutBtn.MouseLeave += (_, _) => logoutBtn.BackColor = Color.FromArgb(50, 20, 20);
+        logoutBtn.Click      += (_, _) => Logout();
+        logoutWrap.Controls.Add(logoutBtn);
+
+        // ── تجميع Sidebar ─────────────────────────────────────
+        sidebar.Controls.Add(navScroll);
+        sidebar.Controls.Add(navSectionLabel);
+        sidebar.Controls.Add(userPanel);
+        sidebar.Controls.Add(logo);
+        sidebar.Controls.Add(logoutWrap);
+        sidebar.Controls.Add(gold);
+
+        return sidebar;
+    }
+
+    private Panel CreateNavButton(NavItem item)
+    {
+        var btn = new Panel
+        {
+            Width     = 236,
+            Height    = 44,
+            BackColor = SidebarBg,
+            Cursor    = Cursors.Hand,
+            Tag       = item,
+            Margin    = Padding.Empty
+        };
+
+        var activeBar = new Panel
+        {
+            Dock      = DockStyle.Right,
+            Width     = 3,
+            BackColor = Color.Transparent
+        };
+
+        var icon = new Label
+        {
+            Text      = item.Icon,
+            Font      = new Font("Segoe UI Emoji", 13F),
+            ForeColor = SidebarText,
+            Dock      = DockStyle.Right,
+            Width     = 42,
+            TextAlign = ContentAlignment.MiddleCenter
         };
 
         var title = new Label
         {
-            Dock = DockStyle.Fill,
-            Font = AppTheme.TitleFont,
-            ForeColor = Color.White,
-            Text = "Smart Market ERP",
-            TextAlign = ContentAlignment.MiddleRight
+            Text      = item.Title,
+            Font      = new Font("Tahoma", 10F),
+            ForeColor = SidebarText,
+            Dock      = DockStyle.Fill,
+            TextAlign = ContentAlignment.MiddleRight,
+            Padding   = new Padding(0, 0, 10, 0)
         };
 
-        var subtitle = new Label
+        btn.Controls.Add(title);
+        btn.Controls.Add(icon);
+        btn.Controls.Add(activeBar);
+
+        void Hover(bool on)
         {
-            Dock = DockStyle.Left,
-            Width = 360,
-            Font = AppTheme.SmallFont,
-            ForeColor = Color.WhiteSmoke,
-            Text = "نظام إدارة السوبر ماركت الذكي",
-            TextAlign = ContentAlignment.MiddleLeft
-        };
+            if (btn == _activeSideBtn) return;
+            btn.BackColor = on ? SidebarHover : SidebarBg;
+        }
 
-        header.Controls.Add(title);
-        header.Controls.Add(subtitle);
-        return header;
+        // ربط الأحداث على كل العناصر الداخلية
+        foreach (Control c in new Control[] { btn, title, icon })
+        {
+            c.MouseEnter += (_, _) => Hover(true);
+            c.MouseLeave += (_, _) => Hover(false);
+            c.Click      += (_, _) => NavigateTo(item);
+        }
+
+        return btn;
     }
 
-    private Control BuildNavigationBar()
+    private void SetActiveNav(NavItem item)
     {
-        var navigation = new FlowLayoutPanel
+        // reset القديم
+        if (_activeSideBtn != null)
         {
-            Dock = DockStyle.Fill,
-            BackColor = AppTheme.Background,
-            FlowDirection = FlowDirection.RightToLeft,
-            Padding = new Padding(18, 14, 18, 10),
-            WrapContents = false
-        };
+            _activeSideBtn.BackColor = SidebarBg;
+            foreach (Control c in _activeSideBtn.Controls)
+                if (c.Dock == DockStyle.Right && c.Width == 3) c.BackColor = Color.Transparent;
+        }
 
-        navigation.Controls.Add(CreateNavButton("الإعدادات", "إدارة البيانات الأساسية والإعدادات العامة"));
-        navigation.Controls.Add(CreateNavButton("التقارير", "نظرة سريعة على التقارير والتحليلات"));
-        navigation.Controls.Add(CreateNavButton("الخزينة", "متابعة الخزائن والورديات والسندات"));
-        navigation.Controls.Add(CreateNavButton("المخزون", "مراقبة الأرصدة وحركات المستودعات"));
-        navigation.Controls.Add(CreateNavButton("المشتريات", "تسجيل الموردين وفواتير الشراء"));
-        navigation.Controls.Add(CreateNavButton("الأصناف", "بطاقة الصنف وإدارة بيانات الأصناف الأساسية"));
-        navigation.Controls.Add(CreateNavButton("المبيعات", "تشغيل نقطة البيع وإدارة العملاء"));
+        // إيجاد الزر الجديد
+        Panel? found = null;
+        foreach (Control ctrl in Controls)
+        {
+            found = FindNavPanel(ctrl, item);
+            if (found != null) break;
+        }
 
-        return navigation;
+        if (found == null) return;
+        found.BackColor = SidebarActive;
+        foreach (Control c in found.Controls)
+        {
+            if (c.Dock == DockStyle.Right && c.Width == 3) c.BackColor = AccentGold;
+            // تفتيح لون النص
+            if (c is Label lbl) lbl.ForeColor = Color.White;
+        }
+        _activeSideBtn = found;
     }
 
-    private Button CreateNavButton(string title, string description)
+    private static Panel? FindNavPanel(Control root, NavItem item)
     {
-        var button = new Button
+        if (root is Panel p && p.Tag is NavItem n && n == item) return p;
+        foreach (Control c in root.Controls)
         {
-            Text = title,
-            Width = 160,
-            Margin = new Padding(8, 0, 8, 0),
-            Tag = description
-        };
-
-        AppTheme.StyleSecondaryButton(button);
-        button.Click += (_, _) => NavigateTo(title, description);
-        return button;
+            var r = FindNavPanel(c, item);
+            if (r != null) return r;
+        }
+        return null;
     }
 
-    private Control BuildBody()
+    // ════════════════════════════════════════════════════════
+    //  MAIN AREA  (Header + Content)
+    // ════════════════════════════════════════════════════════
+    private Control BuildMainArea()
     {
-        var body = new TableLayoutPanel
-        {
-            Dock = DockStyle.Fill,
-            ColumnCount = 1,
-            RowCount = 2,
-            Padding = new Padding(18, 8, 18, 18),
-            BackColor = AppTheme.Background
-        };
-        body.RowStyles.Add(new RowStyle(SizeType.Absolute, 126F));
-        body.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+        var area = new Panel { BackColor = ContentBg };
 
-        var summaryCard = AppTheme.CreateCard();
-        summaryCard.Dock = DockStyle.Fill;
+        // Header — Dock Top
+        var header = BuildHeader();
+        header.Dock   = DockStyle.Top;
+        header.Height = 68;
 
-        _pageTitle = new Label
+        // خط فاصل
+        var sep = new Panel
         {
-            Dock = DockStyle.Top,
-            Height = 38,
-            Font = AppTheme.TitleFont,
-            ForeColor = AppTheme.DarkText,
-            TextAlign = ContentAlignment.MiddleRight
+            Dock      = DockStyle.Top,
+            Height    = 1,
+            BackColor = Color.FromArgb(190, 205, 220)
         };
 
-        _pageDescription = new Label
+        // Content wrapper
+        var contentWrap = new Panel
         {
-            Dock = DockStyle.Fill,
-            Font = AppTheme.BodyFont,
-            ForeColor = AppTheme.MutedText,
-            TextAlign = ContentAlignment.TopRight
+            Dock      = DockStyle.Fill,
+            BackColor = ContentBg,
+            Padding   = new Padding(18, 14, 18, 14)
         };
 
-        summaryCard.Controls.Add(_pageDescription);
-        summaryCard.Controls.Add(_pageTitle);
-
-        var contentCard = AppTheme.CreateCard();
-        contentCard.Dock = DockStyle.Fill;
+        var card = new Panel
+        {
+            Dock      = DockStyle.Fill,
+            BackColor = Color.White
+        };
+        card.Paint += (s, e) =>
+        {
+            using var p = new Pen(Color.FromArgb(200, 215, 232), 1);
+            e.Graphics.DrawRectangle(p, 0, 0, card.Width - 1, card.Height - 1);
+        };
 
         _contentHost = new Panel
         {
-            Dock = DockStyle.Fill,
-            BackColor = AppTheme.Surface
+            Dock      = DockStyle.Fill,
+            BackColor = Color.White,
+            Padding   = new Padding(0)
         };
+        card.Controls.Add(_contentHost);
+        contentWrap.Controls.Add(card);
 
-        contentCard.Controls.Add(_contentHost);
-
-        body.Controls.Add(summaryCard, 0, 0);
-        body.Controls.Add(contentCard, 0, 1);
-        return body;
+        area.Controls.Add(contentWrap);
+        area.Controls.Add(sep);
+        area.Controls.Add(header);
+        return area;
     }
 
-    private StatusStrip BuildStatusBar()
+    private Panel BuildHeader()
     {
-        var strip = new StatusStrip
+        var header = new Panel
         {
-            RightToLeft = RightToLeft.Yes,
-            SizingGrip = false,
-            BackColor = AppTheme.Primary,
+            BackColor = HeaderBg,
+            Padding   = new Padding(20, 0, 20, 0)
+        };
+
+        // ── ساعة + تاريخ — يسار ──────────────────────────────
+        var clockWrap = new Panel
+        {
+            Dock      = DockStyle.Left,
+            Width     = 220,
+            BackColor = Color.Transparent,
+            Padding   = new Padding(0, 8, 0, 8)
+        };
+
+        _clockLabel = new Label
+        {
+            Text      = "",
+            Font      = new Font("Consolas", 20F, FontStyle.Bold),
             ForeColor = Color.White,
-            Font = AppTheme.SmallFont
+            Dock      = DockStyle.Top,
+            Height    = 32,
+            TextAlign = ContentAlignment.MiddleLeft
         };
 
-        strip.Items.Add(new ToolStripStatusLabel($"المستخدم: {SessionContext.DisplayName}  ({SessionContext.RoleAr})"));
-        strip.Items.Add(new ToolStripStatusLabel(" | "));
-        strip.Items.Add(new ToolStripStatusLabel("الوردية: غير مفتوحة"));
-        strip.Items.Add(new ToolStripStatusLabel(" | "));
-        strip.Items.Add(new ToolStripStatusLabel($"التاريخ: {DateTime.Now:dd/MM/yyyy}"));
-        strip.Items.Add(new ToolStripStatusLabel("                              "));
-
-        var logoutLabel = new ToolStripStatusLabel("🔓 تسجيل خروج")
+        _dateLabel = new Label
         {
-            ForeColor  = Color.LightYellow,
-            IsLink     = true,
-            LinkBehavior = LinkBehavior.AlwaysUnderline
+            Text      = "",
+            Font      = new Font("Tahoma", 8.5F),
+            ForeColor = Color.FromArgb(170, 210, 255),
+            Dock      = DockStyle.Fill,
+            TextAlign = ContentAlignment.TopLeft
         };
-        logoutLabel.Click += (_, _) => Logout();
-        strip.Items.Add(logoutLabel);
 
-        return strip;
+        clockWrap.Controls.Add(_dateLabel);
+        clockWrap.Controls.Add(_clockLabel);
+
+        // ── عنوان الصفحة — يمين ──────────────────────────────
+        _pageTitle = new Label
+        {
+            Text      = "",
+            Font      = new Font("Tahoma", 15F, FontStyle.Bold),
+            ForeColor = Color.White,
+            Dock      = DockStyle.Right,
+            Width     = 340,
+            TextAlign = ContentAlignment.MiddleRight
+        };
+
+        // ── شعار في المنتصف ───────────────────────────────────
+        var centerLbl = new Label
+        {
+            Text      = "Smart Market ERP",
+            Font      = new Font("Tahoma", 9F, FontStyle.Bold),
+            ForeColor = Color.FromArgb(160, 200, 250),
+            Dock      = DockStyle.Fill,
+            TextAlign = ContentAlignment.MiddleCenter
+        };
+
+        // ترتيب صحيح: Left ثم Right ثم Fill
+        header.Controls.Add(centerLbl);
+        header.Controls.Add(_pageTitle);
+        header.Controls.Add(clockWrap);
+        return header;
     }
 
-    private void InitializeDashboard()
+    // ════════════════════════════════════════════════════════
+    //  CLOCK
+    // ════════════════════════════════════════════════════════
+    private void TickClock()
     {
-        var dashboard = new DashboardView();
-        dashboard.ModuleRequested += (title, description) => NavigateTo(title, description);
-
-        ShowSection(
-            "لوحة البداية",
-            "تم تجهيز الهيكل الأساسي للتطبيق طبقاً للـ PRD: تنقل بين الوحدات، دعم RTL، ونظام ألوان موحد. الخطوة التالية ستكون تحويل كل وحدة إلى شاشات عمل فعلية وربطها بطبقة البيانات."
-        );
-        SetContent(dashboard);
+        var now = DateTime.Now;
+        _clockLabel.Text = now.ToString("HH:mm:ss");
+        string[] days = { "الأحد","الاثنين","الثلاثاء","الأربعاء","الخميس","الجمعة","السبت" };
+        _dateLabel.Text  = $"{days[(int)now.DayOfWeek]}  {now:dd/MM/yyyy}";
     }
 
-    private void ShowSection(string title, string description)
+    // ════════════════════════════════════════════════════════
+    //  NAVIGATION
+    // ════════════════════════════════════════════════════════
+    private void NavigateTo(NavItem item)
     {
-        _pageTitle.Text = title;
-        _pageDescription.Text = description;
+        _pageTitle.Text = $"{item.Icon}  {item.Title}";
+        SetActiveNav(item);
+        SetContent(ResolveView(item.Title));
     }
 
-    private void NavigateTo(string title, string description)
+    private Control ResolveView(string title) => title switch
     {
-        ShowSection(title, description);
+        "الرئيسية"  => BuildDashboard(),
+        "المبيعات"  => BuildTabs(
+            ("🛒 نقطة البيع",       new PosView()),
+            ("👥 العملاء",          new CustomersView()),
+            ("🎁 العروض والخصومات", new PromotionsView()),
+            ("🔄 المرتجعات",        new SalesReturnsView())),
+        "المشتريات" => BuildTabs(
+            ("📄 فواتير الشراء", new PurchaseInvoicesView()),
+            ("🔄 المرتجعات",     new PurchaseReturnsView()),
+            ("🏭 الموردين",      new SuppliersView())),
+        "الأصناف"   => new ItemsView    { Dock = DockStyle.Fill },
+        "المخزون"   => BuildTabs(
+            ("📊 مستوى المخزون", new StockLevelView()),
+            ("📦 الجرد",         new InventoryCountView()),
+            ("🔄 التحويلات",     new TransferView()),
+            ("🗑️ التالف",        new DamageView()),
+            ("🏭 المستودعات",    EmbedForm<WarehousesManagerForm>())),
+        "الخزينة"   => new TreasuryView  { Dock = DockStyle.Fill },
+        "التسعير"   => new PricingView   { Dock = DockStyle.Fill },
+        "الباركود"  => new BarcodeView   { Dock = DockStyle.Fill },
+        "الإعدادات" => new CategoriesView{ Dock = DockStyle.Fill },
+        _           => Placeholder(title)
+    };
 
-        if (title == "المبيعات")
+    private static TabControl BuildTabs(params (string T, Control V)[] pages)
+    {
+        var tc = new TabControl { Dock = DockStyle.Fill, Font = AppTheme.BodyFont };
+        foreach (var (t, v) in pages)
         {
-            SetContent(new PosView());
-            return;
+            var page = new TabPage(t) { BackColor = AppTheme.Surface };
+            v.Dock = DockStyle.Fill;
+            page.Controls.Add(v);
+            tc.TabPages.Add(page);
         }
-
-        if (title == "الأصناف" || title == "بطاقة الصنف")
-        {
-            SetContent(new ItemsView());
-            return;
-        }
-
-        if (title == "الإعدادات")
-        {
-            SetContent(new CategoriesView());
-            return;
-        }
-
-        if (title == "المشتريات")
-        {
-            // عرض تاب مزدوج: الموردين + فواتير الشراء
-            var tabCtrl = new TabControl { Dock = DockStyle.Fill, Font = AppTheme.BodyFont };
-            var tabInvoices  = new TabPage("📄 فواتير الشراء")  { BackColor = AppTheme.Surface };
-            var tabReturns   = new TabPage("🔄 المرتجعات")       { BackColor = AppTheme.Surface };
-            var tabSuppliers = new TabPage("🏭 الموردين")        { BackColor = AppTheme.Surface };
-
-            var invView = new PurchaseInvoicesView { Dock = DockStyle.Fill };
-            var retView = new PurchaseReturnsView  { Dock = DockStyle.Fill };
-            var supView = new SuppliersView        { Dock = DockStyle.Fill };
-
-            tabInvoices.Controls.Add(invView);
-            tabReturns.Controls.Add(retView);
-            tabSuppliers.Controls.Add(supView);
-
-            tabCtrl.TabPages.Add(tabInvoices);
-            tabCtrl.TabPages.Add(tabReturns);
-            tabCtrl.TabPages.Add(tabSuppliers);
-            SetContent(tabCtrl);
-            return;
-        }
-
-        if (title == "المستخدمون" || title == "إدارة المستخدمين")
-        {
-            if (!SessionContext.IsAdmin)
-            {
-                ShowSection(title, "ليس لديك صلاحية لإدارة المستخدمين.");
-                SetContent(CreatePlaceholderView(title, "هذه الوحدة متاحة لمدير النظام فقط."));
-                return;
-            }
-            SetContent(new UsersView());
-            return;
-        }
-
-        SetContent(CreatePlaceholderView(title, description));
+        return tc;
     }
 
-    private void SetContent(Control control)
+    private static Control EmbedForm<T>() where T : Form, new()
+    {
+        var f = new T { Dock = DockStyle.Fill, TopLevel = false, FormBorderStyle = FormBorderStyle.None };
+        return f;
+    }
+
+    private static Control Placeholder(string title)
+    {
+        var p = new Panel { Dock = DockStyle.Fill, BackColor = AppTheme.Surface };
+        p.Controls.Add(new Label
+        {
+            Text      = $"🔧  {title}\n\nهذه الوحدة قيد التطوير",
+            Font      = new Font("Tahoma", 13F),
+            ForeColor = AppTheme.MutedText,
+            Dock      = DockStyle.Fill,
+            TextAlign = ContentAlignment.MiddleCenter
+        });
+        return p;
+    }
+
+    private Control BuildDashboard()
+    {
+        var dash = new DashboardView { Dock = DockStyle.Fill };
+        dash.ModuleRequested += (t, _) =>
+        {
+            var item = Array.Find(Nav, n => n.Title == t);
+            if (item != null) NavigateTo(item);
+        };
+        return dash;
+    }
+
+    private void SetContent(Control c)
     {
         _contentHost.Controls.Clear();
-        control.Dock = DockStyle.Fill;
-        _contentHost.Controls.Add(control);
+        c.Dock = DockStyle.Fill;
+        _contentHost.Controls.Add(c);
+        if (c is Form f && !f.Visible) f.Show();
     }
 
+    // ════════════════════════════════════════════════════════
+    //  LOGOUT
+    // ════════════════════════════════════════════════════════
     private void Logout()
     {
-        var confirm = MessageBox.Show(
-            "هل تريد تسجيل الخروج؟",
-            "تسجيل الخروج",
-            MessageBoxButtons.YesNo,
-            MessageBoxIcon.Question);
+        if (MessageBox.Show("هل تريد تسجيل الخروج؟", "تسجيل الخروج",
+                MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
 
-        if (confirm != DialogResult.Yes) return;
-
-        if (SessionContext.CurrentUser is not null)
+        if (SessionContext.CurrentUser != null)
             AuditService.LogLogout(SessionContext.CurrentUser.Id);
-
         SessionContext.EndSession();
 
-        // فتح شاشة Login مرة أخرى
         Hide();
         using var login = new LoginForm();
         if (login.ShowDialog() == DialogResult.OK)
         {
-            // تسجيل دخول ناجح — أعد تحميل الشاشة الرئيسية
             Show();
-            InitializeDashboard();
+            NavigateTo(Nav[0]);
         }
-        else
-        {
-            Application.Exit();
-        }
+        else Application.Exit();
     }
 
-    private Control CreatePlaceholderView(string title, string description)
+    protected override void OnFormClosed(FormClosedEventArgs e)
     {
-        var panel = new Panel
-        {
-            BackColor = AppTheme.Surface
-        };
-
-        var infoCard = AppTheme.CreateCard();
-        infoCard.Dock = DockStyle.Top;
-        infoCard.Height = 220;
-
-        var titleLabel = new Label
-        {
-            Dock = DockStyle.Top,
-            Height = 42,
-            Font = AppTheme.TitleFont,
-            ForeColor = AppTheme.Primary,
-            Text = title,
-            TextAlign = ContentAlignment.MiddleRight
-        };
-
-        var descriptionLabel = new Label
-        {
-            Dock = DockStyle.Top,
-            Height = 80,
-            Font = AppTheme.BodyFont,
-            ForeColor = AppTheme.MutedText,
-            Text = description,
-            TextAlign = ContentAlignment.TopRight
-        };
-
-        var noteLabel = new Label
-        {
-            Dock = DockStyle.Fill,
-            Font = AppTheme.BodyFont,
-            ForeColor = AppTheme.DarkText,
-            Text = "هذه الوحدة ستكون التالية في التنفيذ. تم الإبقاء عليها كمساحة جاهزة حتى نحافظ على التنقل موحداً داخل النظام.",
-            TextAlign = ContentAlignment.TopRight
-        };
-
-        infoCard.Controls.Add(noteLabel);
-        infoCard.Controls.Add(descriptionLabel);
-        infoCard.Controls.Add(titleLabel);
-
-        panel.Controls.Add(infoCard);
-        return panel;
+        _clock.Stop();
+        _clock.Dispose();
+        base.OnFormClosed(e);
     }
 }

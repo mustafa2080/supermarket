@@ -140,8 +140,10 @@ internal class SalesRepository
 
                 const string insLine = """
                     INSERT INTO public.sales_invoice_lines
-                        (invoice_id, item_id, quantity, unit_price, discount, tax_rate, tax_amount, line_total)
-                    VALUES (@inv, @item, @qty, @price, @disc, @taxRate, @taxAmt, @total)
+                        (invoice_id, item_id, quantity, unit_price, discount,
+                         promotion_id, tax_rate, tax_amount, line_total)
+                    VALUES (@inv, @item, @qty, @price, @disc,
+                            @promo, @taxRate, @taxAmt, @total)
                     """;
                 using var lCmd = new NpgsqlCommand(insLine, conn, tx);
                 lCmd.Parameters.AddWithValue("inv",     id);
@@ -149,6 +151,7 @@ internal class SalesRepository
                 lCmd.Parameters.AddWithValue("qty",     l.Quantity);
                 lCmd.Parameters.AddWithValue("price",   l.UnitPrice);
                 lCmd.Parameters.AddWithValue("disc",    l.Discount);
+                lCmd.Parameters.AddWithValue("promo",   (object?)l.PromotionId ?? DBNull.Value);
                 lCmd.Parameters.AddWithValue("taxRate", l.TaxRate);
                 lCmd.Parameters.AddWithValue("taxAmt",  taxAmt);
                 lCmd.Parameters.AddWithValue("total",   lineTot);
