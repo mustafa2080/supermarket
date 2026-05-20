@@ -1,4 +1,5 @@
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using supermarket.Data.Repositories;
 using supermarket.Models;
 using supermarket.Services;
@@ -12,6 +13,19 @@ namespace supermarket.Views;
 /// </summary>
 internal sealed class PosView : UserControl
 {
+    private static readonly Color PosBg           = ColorTranslator.FromHtml("#EEF3F8");
+    private static readonly Color Surface         = Color.White;
+    private static readonly Color SurfaceAlt      = ColorTranslator.FromHtml("#F8FBFF");
+    private static readonly Color Ink             = ColorTranslator.FromHtml("#14324A");
+    private static readonly Color MutedInk        = ColorTranslator.FromHtml("#6A8094");
+    private static readonly Color Border          = ColorTranslator.FromHtml("#D7E4F0");
+    private static readonly Color HeaderBg        = ColorTranslator.FromHtml("#163A59");
+    private static readonly Color HeaderAccent    = ColorTranslator.FromHtml("#E38B17");
+    private static readonly Color SuccessGreen    = ColorTranslator.FromHtml("#1F8A5B");
+    private static readonly Color VisaBlue        = ColorTranslator.FromHtml("#2B6CB0");
+    private static readonly Color CreditBrown     = ColorTranslator.FromHtml("#A15C22");
+    private static readonly Color CardShadow      = Color.FromArgb(26, 22, 57, 93);
+
     // ── بيانات الجلسة ────────────────────────────────────────
     private readonly SalesRepository _repo   = new();
     private Warehouse  _warehouse            = new() { Id = 1, Name = "الرئيسي" };
@@ -67,7 +81,7 @@ internal sealed class PosView : UserControl
         _payPanel       = new Panel();
 
         Dock        = DockStyle.Fill;
-        BackColor   = Color.FromArgb(30, 30, 46);
+        BackColor   = PosBg;
         RightToLeft = RightToLeft.Yes;
 
         LoadSessionData();
@@ -103,22 +117,23 @@ internal sealed class PosView : UserControl
         // شريط العنوان العلوي
         var topBar = BuildTopBar();
 
-        // اللوح الأيمن: بحث + سلة
-        var leftPanel = BuildLeftPanel();
+        // اللوح الأيمن فعلياً: بحث + سلة
+        var salesPanel = BuildLeftPanel();
 
-        // اللوح الأيسر: إجماليات + دفع
-        var rightPanel = BuildRightPanel();
+        // اللوح الأيسر فعلياً: إجماليات + دفع
+        var summaryPanel = BuildRightPanel();
 
         var split = new SplitContainer
         {
             Dock          = DockStyle.Fill,
             Orientation   = Orientation.Vertical,
-            SplitterWidth = 6,
-            BackColor     = Color.FromArgb(30, 30, 46)
+            SplitterWidth = 8,
+            BackColor     = PosBg,
+            RightToLeft   = RightToLeft.No
         };
         _mainSplit = split;
-        split.Panel1.Controls.Add(leftPanel);
-        split.Panel2.Controls.Add(rightPanel);
+        split.Panel1.Controls.Add(summaryPanel);
+        split.Panel2.Controls.Add(salesPanel);
 
         split.SizeChanged += (_, _) => UpdateMainSplitLayout();
         split.Layout      += (_, _) => UpdateMainSplitLayout();
@@ -126,9 +141,10 @@ internal sealed class PosView : UserControl
         var root = new TableLayoutPanel
         {
             Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2,
-            BackColor = Color.FromArgb(30, 30, 46)
+            BackColor = PosBg,
+            Padding = new Padding(16, 14, 16, 16)
         };
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 52F));
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 74F));
         root.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
         root.Controls.Add(topBar, 0, 0);
         root.Controls.Add(split,  0, 1);
@@ -145,8 +161,8 @@ internal sealed class PosView : UserControl
 
         try
         {
-            const int p1Min = 400;
-            const int p2Min = 280;
+            const int p1Min = 360;
+            const int p2Min = 560;
 
             // نضبط MinSizes هنا بأمان لأن الـ Width بقى له قيمة حقيقية
             if (_mainSplit.Panel1MinSize != p1Min) _mainSplit.Panel1MinSize = p1Min;
@@ -162,7 +178,7 @@ internal sealed class PosView : UserControl
                 return;
             }
 
-            int desired     = _mainSplit.Width - 320;
+            int desired     = (int)((_mainSplit.Width - _mainSplit.SplitterWidth) * 0.35);
             int safeDistance = Math.Max(min, Math.Min(desired, max));
 
             if (_mainSplit.SplitterDistance != safeDistance)
@@ -180,27 +196,41 @@ internal sealed class PosView : UserControl
         var bar = new Panel
         {
             Dock      = DockStyle.Fill,
-            BackColor = Color.FromArgb(22, 22, 35),
-            Padding   = new Padding(12, 8, 12, 8)
+            BackColor = HeaderBg,
+            Padding   = new Padding(18, 12, 18, 10)
+        };
+        bar.Paint += (_, e) =>
+        {
+            e.Graphics.FillRectangle(new SolidBrush(HeaderAccent), 0, 0, bar.Width, 4);
+        };
+
+        var titleLbl = new Label
+        {
+            Text = "نقطة البيع",
+            Dock = DockStyle.Right,
+            Width = 180,
+            Font = new Font("Tahoma", 16F, FontStyle.Bold),
+            ForeColor = Color.White,
+            TextAlign = ContentAlignment.MiddleRight
         };
 
         _lblInvNum.AutoSize  = true;
         _lblInvNum.Font      = new Font("Tahoma", 11F, FontStyle.Bold);
-        _lblInvNum.ForeColor = AppTheme.Accent;
-        _lblInvNum.Location  = new Point(12, 14);
+        _lblInvNum.ForeColor = Color.White;
+        _lblInvNum.Location  = new Point(18, 22);
 
         _lblCashier.AutoSize  = true;
-        _lblCashier.Font      = AppTheme.BodyFont;
-        _lblCashier.ForeColor = Color.Silver;
-        _lblCashier.Location  = new Point(250, 16);
+        _lblCashier.Font      = new Font("Tahoma", 9.5F);
+        _lblCashier.ForeColor = Color.FromArgb(210, 225, 238);
+        _lblCashier.Location  = new Point(250, 24);
         _lblCashier.Text      = $"الكاشير: {SessionContext.DisplayName}  |  المستودع: {_warehouse.Name}";
 
         _lblTime.AutoSize  = true;
-        _lblTime.Font      = new Font("Tahoma", 13F, FontStyle.Bold);
-        _lblTime.ForeColor = Color.LightGreen;
+        _lblTime.Font      = new Font("Tahoma", 14F, FontStyle.Bold);
+        _lblTime.ForeColor = Color.FromArgb(255, 233, 174);
         _lblTime.Text      = DateTime.Now.ToString("hh:mm:ss tt");
         _lblTime.Anchor    = AnchorStyles.Left | AnchorStyles.Top;
-        _lblTime.Location  = new Point(bar.Width - 160, 12);
+        _lblTime.Location  = new Point(bar.Width - 170, 20);
 
         _lblFeedback.AutoSize  = false;
         _lblFeedback.Dock      = DockStyle.Bottom;
@@ -209,6 +239,7 @@ internal sealed class PosView : UserControl
         _lblFeedback.TextAlign = ContentAlignment.MiddleRight;
         _lblFeedback.ForeColor = AppTheme.Success;
 
+        bar.Controls.Add(titleLbl);
         bar.Controls.Add(_lblInvNum);
         bar.Controls.Add(_lblCashier);
         bar.Controls.Add(_lblTime);
@@ -218,40 +249,74 @@ internal sealed class PosView : UserControl
     // ── اللوح الأيمن: بحث + عميل + سلة ─────────────────────
     private Control BuildLeftPanel()
     {
-        var p = new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(30, 30, 46), Padding = new Padding(6) };
+        var p = CreateCardPanel(new Padding(18, 16, 18, 16));
 
         // صف البحث
-        var searchRow = new Panel { Dock = DockStyle.Top, Height = 44, BackColor = Color.Transparent };
-        var lblSearch = new Label { Text = "🔍 بحث (F1):", AutoSize = true, ForeColor = Color.Silver,
-            Font = AppTheme.BodyFont, Location = new Point(0, 12) };
-        _searchBox.Location    = new Point(105, 8);
-        _searchBox.Width       = 340;
-        _searchBox.Font        = new Font("Tahoma", 12F);
-        _searchBox.BackColor   = Color.FromArgb(50, 50, 70);
-        _searchBox.ForeColor   = Color.White;
+        var sectionHeader = new Panel { Dock = DockStyle.Top, Height = 34, BackColor = Color.Transparent };
+        var sectionTitle = new Label
+        {
+            Text = "سلة المبيعات",
+            Dock = DockStyle.Right,
+            Width = 180,
+            Font = new Font("Tahoma", 14F, FontStyle.Bold),
+            ForeColor = Ink,
+            TextAlign = ContentAlignment.MiddleRight
+        };
+        var sectionSub = new Label
+        {
+            Text = "ابحث عن الصنف ثم أضفه مباشرة إلى الفاتورة",
+            Dock = DockStyle.Fill,
+            Font = new Font("Tahoma", 9F),
+            ForeColor = MutedInk,
+            TextAlign = ContentAlignment.MiddleRight
+        };
+        sectionHeader.Controls.Add(sectionSub);
+        sectionHeader.Controls.Add(sectionTitle);
+
+        var searchRow = new Panel { Dock = DockStyle.Top, Height = 56, BackColor = Color.Transparent, Padding = new Padding(0, 10, 0, 6) };
+        var lblSearch = new Label
+        {
+            Text = "بحث سريع",
+            Dock = DockStyle.Right,
+            Width = 88,
+            ForeColor = Ink,
+            Font = new Font("Tahoma", 10F, FontStyle.Bold),
+            TextAlign = ContentAlignment.MiddleRight
+        };
+        _searchBox.Dock        = DockStyle.Fill;
+        _searchBox.Font        = new Font("Tahoma", 11.5F);
+        _searchBox.BackColor   = SurfaceAlt;
+        _searchBox.ForeColor   = Ink;
         _searchBox.BorderStyle = BorderStyle.FixedSingle;
         _searchBox.PlaceholderText = "اسم الصنف أو الباركود أو الكود...";
+        _searchBox.TextAlign   = HorizontalAlignment.Right;
         searchRow.Controls.Add(_searchBox);
         searchRow.Controls.Add(lblSearch);
 
         // قائمة نتائج البحث (Dropdown)
         _searchList.Dock             = DockStyle.Top;
         _searchList.Height           = 0; // مخفية في البداية
-        _searchList.BackColor        = Color.FromArgb(45, 45, 65);
-        _searchList.ForeColor        = Color.White;
+        _searchList.BackColor        = Surface;
+        _searchList.ForeColor        = Ink;
         _searchList.Font             = new Font("Tahoma", 10F);
         _searchList.BorderStyle      = BorderStyle.FixedSingle;
         _searchList.ItemHeight       = 28;
         _searchList.IntegralHeight   = false;
 
         // صف العميل
-        var customerRow = new Panel { Dock = DockStyle.Top, Height = 40, BackColor = Color.Transparent };
-        var lblCust = new Label { Text = "👤 العميل:", AutoSize = true, ForeColor = Color.Silver,
-            Font = AppTheme.BodyFont, Location = new Point(0, 10) };
-        _customerCombo.Location     = new Point(80, 6);
-        _customerCombo.Width        = 300;
-        _customerCombo.BackColor    = Color.FromArgb(50, 50, 70);
-        _customerCombo.ForeColor    = Color.White;
+        var customerRow = new Panel { Dock = DockStyle.Top, Height = 50, BackColor = Color.Transparent, Padding = new Padding(0, 4, 0, 8) };
+        var lblCust = new Label
+        {
+            Text = "العميل",
+            Dock = DockStyle.Right,
+            Width = 72,
+            ForeColor = Ink,
+            Font = new Font("Tahoma", 10F, FontStyle.Bold),
+            TextAlign = ContentAlignment.MiddleRight
+        };
+        _customerCombo.Dock         = DockStyle.Fill;
+        _customerCombo.BackColor    = SurfaceAlt;
+        _customerCombo.ForeColor    = Ink;
         _customerCombo.FlatStyle    = FlatStyle.Flat;
         customerRow.Controls.Add(_customerCombo);
         customerRow.Controls.Add(lblCust);
@@ -262,16 +327,17 @@ internal sealed class PosView : UserControl
 
         // شريط feedback
         _lblFeedback.Dock      = DockStyle.Bottom;
-        _lblFeedback.Height    = 28;
-        _lblFeedback.Font      = AppTheme.BodyFont;
+        _lblFeedback.Height    = 32;
+        _lblFeedback.Font      = new Font("Tahoma", 9F);
         _lblFeedback.TextAlign = ContentAlignment.MiddleRight;
-        _lblFeedback.BackColor = Color.FromArgb(22, 22, 35);
-        _lblFeedback.ForeColor = AppTheme.Success;
+        _lblFeedback.BackColor = SurfaceAlt;
+        _lblFeedback.ForeColor = SuccessGreen;
 
         p.Controls.Add(_cartGrid);
         p.Controls.Add(_searchList);
         p.Controls.Add(customerRow);
         p.Controls.Add(searchRow);
+        p.Controls.Add(sectionHeader);
         p.Controls.Add(_lblFeedback);
         return p;
     }
@@ -286,17 +352,20 @@ internal sealed class PosView : UserControl
         _cartGrid.RowHeadersVisible     = false;
         _cartGrid.BorderStyle           = BorderStyle.None;
         _cartGrid.Font                  = new Font("Tahoma", 10F);
-        _cartGrid.BackgroundColor       = Color.FromArgb(38, 38, 55);
-        _cartGrid.GridColor             = Color.FromArgb(60, 60, 80);
-        _cartGrid.DefaultCellStyle.BackColor = Color.FromArgb(38, 38, 55);
-        _cartGrid.DefaultCellStyle.ForeColor = Color.White;
-        _cartGrid.DefaultCellStyle.SelectionBackColor = Color.FromArgb(70, 100, 160);
-        _cartGrid.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(43, 43, 62);
-        _cartGrid.ColumnHeadersDefaultCellStyle.BackColor   = Color.FromArgb(22, 22, 35);
-        _cartGrid.ColumnHeadersDefaultCellStyle.ForeColor   = AppTheme.Accent;
+        _cartGrid.BackgroundColor       = Surface;
+        _cartGrid.GridColor             = Border;
+        _cartGrid.DefaultCellStyle.BackColor = Surface;
+        _cartGrid.DefaultCellStyle.ForeColor = Ink;
+        _cartGrid.DefaultCellStyle.SelectionBackColor = ColorTranslator.FromHtml("#DDEEFF");
+        _cartGrid.DefaultCellStyle.SelectionForeColor = Ink;
+        _cartGrid.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+        _cartGrid.AlternatingRowsDefaultCellStyle.BackColor = ColorTranslator.FromHtml("#F8FBFE");
+        _cartGrid.ColumnHeadersDefaultCellStyle.BackColor   = ColorTranslator.FromHtml("#EDF4FB");
+        _cartGrid.ColumnHeadersDefaultCellStyle.ForeColor   = Ink;
         _cartGrid.ColumnHeadersDefaultCellStyle.Font        = new Font("Tahoma", 9.5F, FontStyle.Bold);
+        _cartGrid.ColumnHeadersDefaultCellStyle.Alignment   = DataGridViewContentAlignment.MiddleCenter;
         _cartGrid.EnableHeadersVisualStyles = false;
-        _cartGrid.RowTemplate.Height        = 38;
+        _cartGrid.RowTemplate.Height        = 40;
 
         _cartGrid.Columns.Add(new DataGridViewTextBoxColumn { Name = "colIdx",   HeaderText = "#",         Width = 38,  FillWeight = 3,  ReadOnly = true });
         _cartGrid.Columns.Add(new DataGridViewTextBoxColumn { Name = "colName",  HeaderText = "الصنف",     FillWeight = 38, ReadOnly = true });
@@ -314,11 +383,11 @@ internal sealed class PosView : UserControl
         });
 
         // تمييز عمود الكمية والخصم
-        _cartGrid.Columns["colQty"]!.DefaultCellStyle.BackColor  = Color.FromArgb(45, 75, 45);
-        _cartGrid.Columns["colQty"]!.DefaultCellStyle.ForeColor  = Color.LightGreen;
+        _cartGrid.Columns["colQty"]!.DefaultCellStyle.BackColor  = ColorTranslator.FromHtml("#EAF8F0");
+        _cartGrid.Columns["colQty"]!.DefaultCellStyle.ForeColor  = SuccessGreen;
         _cartGrid.Columns["colQty"]!.DefaultCellStyle.Font       = new Font("Tahoma", 11F, FontStyle.Bold);
-        _cartGrid.Columns["colDisc"]!.DefaultCellStyle.BackColor = Color.FromArgb(75, 55, 35);
-        _cartGrid.Columns["colDisc"]!.DefaultCellStyle.ForeColor = Color.Orange;
+        _cartGrid.Columns["colDisc"]!.DefaultCellStyle.BackColor = ColorTranslator.FromHtml("#FFF4E8");
+        _cartGrid.Columns["colDisc"]!.DefaultCellStyle.ForeColor = HeaderAccent;
     }
 
     // ══════════════════════════════════════════════════════════
@@ -326,32 +395,48 @@ internal sealed class PosView : UserControl
     // ══════════════════════════════════════════════════════════
     private Control BuildRightPanel()
     {
-        var p = new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(22, 22, 35), Padding = new Padding(8) };
-        var layout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 4, BackColor = Color.Transparent };
-        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 130F));
-        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 52F));
-        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 110F));
+        var p = CreateCardPanel(new Padding(16, 16, 16, 16));
+        var layout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 5, BackColor = Color.Transparent };
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 34F));
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 144F));
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 60F));
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 124F));
         layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
-        layout.Controls.Add(BuildTotalsPanel(),    0, 0);
-        layout.Controls.Add(BuildPayMethodPanel(), 0, 1);
-        layout.Controls.Add(BuildPaidPanel(),      0, 2);
-        layout.Controls.Add(BuildActionPanel(),    0, 3);
+        layout.Controls.Add(new Label
+        {
+            Text = "لوحة الدفع والملخص",
+            Dock = DockStyle.Fill,
+            Font = new Font("Tahoma", 14F, FontStyle.Bold),
+            ForeColor = Ink,
+            TextAlign = ContentAlignment.MiddleRight
+        }, 0, 0);
+        layout.Controls.Add(BuildTotalsPanel(),    0, 1);
+        layout.Controls.Add(BuildPayMethodPanel(), 0, 2);
+        layout.Controls.Add(BuildPaidPanel(),      0, 3);
+        layout.Controls.Add(BuildActionPanel(),    0, 4);
         p.Controls.Add(layout);
         return p;
     }
 
     private Control BuildTotalsPanel()
     {
-        var card = new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(38, 38, 55), Padding = new Padding(10) };
-        _lblSubtotal.Text = "0.00"; _lblSubtotal.AutoSize = true; _lblSubtotal.ForeColor = Color.White;      _lblSubtotal.Font = AppTheme.BodyFont;
-        _lblDiscount.Text = "0.00"; _lblDiscount.AutoSize = true; _lblDiscount.ForeColor = Color.Orange;     _lblDiscount.Font = AppTheme.BodyFont;
-        _lblTax.Text      = "0.00"; _lblTax.AutoSize      = true; _lblTax.ForeColor      = Color.LightBlue;  _lblTax.Font      = AppTheme.BodyFont;
-        _lblNet.Text      = "0.00"; _lblNet.AutoSize      = true; _lblNet.ForeColor      = Color.Gold;        _lblNet.Font      = new Font("Tahoma", 14F, FontStyle.Bold);
-        var tbl = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 4 };
-        tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 55F));
-        tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 45F));
+        var card = CreateInnerCard(new Padding(14));
+        _lblSubtotal.Text = "0.00"; _lblSubtotal.AutoSize = true; _lblSubtotal.ForeColor = Ink;            _lblSubtotal.Font = new Font("Tahoma", 10.5F, FontStyle.Bold);
+        _lblDiscount.Text = "0.00"; _lblDiscount.AutoSize = true; _lblDiscount.ForeColor = HeaderAccent;   _lblDiscount.Font = new Font("Tahoma", 10.5F, FontStyle.Bold);
+        _lblTax.Text      = "0.00"; _lblTax.AutoSize      = true; _lblTax.ForeColor      = VisaBlue;       _lblTax.Font      = new Font("Tahoma", 10.5F, FontStyle.Bold);
+        _lblNet.Text      = "0.00"; _lblNet.AutoSize      = true; _lblNet.ForeColor      = SuccessGreen;   _lblNet.Font      = new Font("Tahoma", 17F, FontStyle.Bold);
+        var tbl = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 4, BackColor = Color.Transparent };
+        tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
+        tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
         for (int i = 0; i < 4; i++) tbl.RowStyles.Add(new RowStyle(SizeType.Percent, 25F));
-        Label Lbl(string t, bool big = false) => new Label { Text = t, AutoSize = true, ForeColor = big ? Color.Gold : Color.Silver, Font = big ? new Font("Tahoma", 13F, FontStyle.Bold) : AppTheme.BodyFont };
+        Label Lbl(string t, bool big = false) => new Label
+        {
+            Text = t,
+            AutoSize = true,
+            ForeColor = big ? Ink : MutedInk,
+            Font = big ? new Font("Tahoma", 12F, FontStyle.Bold) : new Font("Tahoma", 9.5F, FontStyle.Bold),
+            Anchor = AnchorStyles.Right
+        };
         tbl.Controls.Add(Lbl("المجموع الفرعي:"),       0, 0); tbl.Controls.Add(_lblSubtotal, 1, 0);
         tbl.Controls.Add(Lbl("الخصم:"),                0, 1); tbl.Controls.Add(_lblDiscount, 1, 1);
         tbl.Controls.Add(Lbl("الضريبة:"),              0, 2); tbl.Controls.Add(_lblTax,      1, 2);
@@ -362,19 +447,24 @@ internal sealed class PosView : UserControl
 
     private Control BuildPayMethodPanel()
     {
-        var p    = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent, Padding = new Padding(0, 6, 0, 0) };
-        var flow = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight, WrapContents = false };
+        var p    = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent, Padding = new Padding(0, 8, 0, 0) };
+        var flow = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            FlowDirection = FlowDirection.RightToLeft,
+            WrapContents = false
+        };
         void StylePayBtn(Button b, Color col)
         {
-            b.Width = 85; b.Height = 38; b.Font = new Font("Tahoma", 10F, FontStyle.Bold);
+            b.Width = 96; b.Height = 42; b.Font = new Font("Tahoma", 9.5F, FontStyle.Bold);
             b.FlatStyle = FlatStyle.Flat; b.BackColor = col; b.ForeColor = Color.White;
-            b.Margin = new Padding(4, 0, 4, 0);
+            b.Margin = new Padding(4, 0, 8, 0);
             b.FlatAppearance.BorderSize = 0;
             b.FlatAppearance.BorderColor = Color.Gold;
         }
-        StylePayBtn(_btnCash,   Color.FromArgb(34, 120, 60));
-        StylePayBtn(_btnVisa,   Color.FromArgb(30, 80, 160));
-        StylePayBtn(_btnCredit, Color.FromArgb(140, 60, 20));
+        StylePayBtn(_btnCash,   SuccessGreen);
+        StylePayBtn(_btnVisa,   VisaBlue);
+        StylePayBtn(_btnCredit, CreditBrown);
         flow.Controls.Add(_btnCash); flow.Controls.Add(_btnVisa); flow.Controls.Add(_btnCredit);
         p.Controls.Add(flow);
         return p;
@@ -382,18 +472,27 @@ internal sealed class PosView : UserControl
 
     private Control BuildPaidPanel()
     {
-        var card = new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(38, 38, 55), Padding = new Padding(8, 6, 8, 6) };
-        var tbl  = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 3 };
+        var card = CreateInnerCard(new Padding(12, 10, 12, 10));
+        var tbl  = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 2,
+            RowCount = 3,
+            BackColor = Color.Transparent,
+            RightToLeft = RightToLeft.Yes
+        };
         tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 48F));
         tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 52F));
         for (int i = 0; i < 3; i++) tbl.RowStyles.Add(new RowStyle(SizeType.Percent, 33.3F));
-        _txtInvDiscount.Width = 100; _txtInvDiscount.BackColor = Color.FromArgb(50, 50, 70); _txtInvDiscount.ForeColor = Color.Orange;
-        _txtInvDiscount.Font = AppTheme.BodyFont; _txtInvDiscount.BorderStyle = BorderStyle.FixedSingle; _txtInvDiscount.Text = "0";
-        _txtPaid.Width = 120; _txtPaid.BackColor = Color.FromArgb(30, 60, 30); _txtPaid.ForeColor = Color.LightGreen;
+        _txtInvDiscount.Width = 110; _txtInvDiscount.BackColor = SurfaceAlt; _txtInvDiscount.ForeColor = HeaderAccent;
+        _txtInvDiscount.Font = new Font("Tahoma", 10.5F, FontStyle.Bold); _txtInvDiscount.BorderStyle = BorderStyle.FixedSingle; _txtInvDiscount.Text = "0";
+        _txtInvDiscount.TextAlign = HorizontalAlignment.Right;
+        _txtPaid.Width = 130; _txtPaid.BackColor = ColorTranslator.FromHtml("#EAF8F0"); _txtPaid.ForeColor = SuccessGreen;
         _txtPaid.Font  = new Font("Tahoma", 12F, FontStyle.Bold); _txtPaid.BorderStyle = BorderStyle.FixedSingle;
-        _lblChange.AutoSize = true; _lblChange.Text = "0.00"; _lblChange.ForeColor = Color.Gold;
-        _lblChange.Font = new Font("Tahoma", 13F, FontStyle.Bold);
-        Label Lbl(string t, Color c) => new Label { Text = t, AutoSize = true, ForeColor = c, Font = new Font("Tahoma", 10F, FontStyle.Bold), Margin = new Padding(0, 6, 4, 0) };
+        _txtPaid.TextAlign = HorizontalAlignment.Right;
+        _lblChange.AutoSize = true; _lblChange.Text = "0.00"; _lblChange.ForeColor = Ink;
+        _lblChange.Font = new Font("Tahoma", 14F, FontStyle.Bold);
+        Label Lbl(string t, Color c) => new Label { Text = t, AutoSize = true, ForeColor = c, Font = new Font("Tahoma", 9.5F, FontStyle.Bold), Margin = new Padding(0, 8, 4, 0) };
         tbl.Controls.Add(Lbl("خصم الفاتورة:", Color.Orange),     0, 0); tbl.Controls.Add(_txtInvDiscount, 1, 0);
         tbl.Controls.Add(Lbl("المدفوع:",       Color.LightGreen), 0, 1); tbl.Controls.Add(_txtPaid,        1, 1);
         tbl.Controls.Add(Lbl("الباقي:",        Color.Gold),       0, 2); tbl.Controls.Add(_lblChange,      1, 2);
@@ -403,21 +502,94 @@ internal sealed class PosView : UserControl
 
     private Control BuildActionPanel()
     {
-        var p = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent, Padding = new Padding(0, 8, 0, 0) };
+        var p = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent, Padding = new Padding(0, 10, 0, 0) };
+        var note = new Label
+        {
+            Dock = DockStyle.Bottom,
+            Height = 32,
+            Text = "راجع الصافي وطريقة الدفع قبل إنهاء الفاتورة",
+            Font = new Font("Tahoma", 8.8F),
+            ForeColor = MutedInk,
+            TextAlign = ContentAlignment.MiddleCenter
+        };
         void StyleBtn(Button b, Color col, int h = 48)
         {
-            b.Dock = DockStyle.Top; b.Height = h; b.Font = new Font("Tahoma", 11F, FontStyle.Bold);
+            b.Dock = DockStyle.Top; b.Height = h; b.Font = new Font("Tahoma", 10.5F, FontStyle.Bold);
             b.FlatStyle = FlatStyle.Flat; b.BackColor = col; b.ForeColor = Color.White;
-            b.Margin = new Padding(0, 0, 0, 6); b.FlatAppearance.BorderSize = 0;
+            b.Margin = new Padding(0, 0, 0, 8); b.FlatAppearance.BorderSize = 0;
         }
-        StyleBtn(_btnPay,    Color.FromArgb(34, 130, 60));
-        StyleBtn(_btnHold,   Color.FromArgb(100, 80, 30));
-        StyleBtn(_btnResume, Color.FromArgb(40, 80, 130), 38);
+        StyleBtn(_btnPay,    SuccessGreen, 50);
+        StyleBtn(_btnHold,   ColorTranslator.FromHtml("#8A6B2F"), 46);
+        StyleBtn(_btnResume, VisaBlue, 40);
         // Dock.Top: المضاف أولاً يظهر في الأسفل، لذا نعكس الترتيب
         p.Controls.Add(_btnResume);
         p.Controls.Add(_btnHold);
         p.Controls.Add(_btnPay);
+        p.Controls.Add(note);
         return p;
+    }
+
+    private static Panel CreateCardPanel(Padding padding)
+    {
+        var panel = new Panel
+        {
+            Dock = DockStyle.Fill,
+            BackColor = Color.Transparent,
+            Padding = padding
+        };
+
+        panel.Paint += (_, e) =>
+        {
+            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+            var shadowRect = new Rectangle(4, 6, panel.Width - 10, panel.Height - 10);
+            using var shadowPath = CreateRoundedPath(shadowRect, 22);
+            using var shadowBrush = new SolidBrush(CardShadow);
+            e.Graphics.FillPath(shadowBrush, shadowPath);
+
+            var rect = new Rectangle(0, 0, panel.Width - 12, panel.Height - 12);
+            using var path = CreateRoundedPath(rect, 22);
+            using var fill = new SolidBrush(Surface);
+            using var border = new Pen(Border);
+            e.Graphics.FillPath(fill, path);
+            e.Graphics.DrawPath(border, path);
+        };
+
+        return panel;
+    }
+
+    private static Panel CreateInnerCard(Padding padding)
+    {
+        var panel = new Panel
+        {
+            Dock = DockStyle.Fill,
+            BackColor = SurfaceAlt,
+            Padding = padding
+        };
+
+        panel.Paint += (_, e) =>
+        {
+            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+            var rect = new Rectangle(0, 0, panel.Width - 1, panel.Height - 1);
+            using var path = CreateRoundedPath(rect, 16);
+            using var fill = new SolidBrush(SurfaceAlt);
+            using var border = new Pen(Border);
+            e.Graphics.FillPath(fill, path);
+            e.Graphics.DrawPath(border, path);
+        };
+
+        return panel;
+    }
+
+    private static GraphicsPath CreateRoundedPath(Rectangle rect, int radius)
+    {
+        var path = new GraphicsPath();
+        int d = radius * 2;
+        path.AddArc(rect.X, rect.Y, d, d, 180, 90);
+        path.AddArc(rect.Right - d, rect.Y, d, d, 270, 90);
+        path.AddArc(rect.Right - d, rect.Bottom - d, d, d, 0, 90);
+        path.AddArc(rect.X, rect.Bottom - d, d, d, 90, 90);
+        path.CloseFigure();
+        return path;
     }
 
     // ══════════════════════════════════════════════════════════

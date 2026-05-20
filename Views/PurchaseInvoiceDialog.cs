@@ -107,13 +107,13 @@ internal sealed class PurchaseInvoiceDialog : Form
         var root = new TableLayoutPanel
         {
             Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 5,
-            Padding = new Padding(10), BackColor = AppTheme.Background
+            Padding = new Padding(14), BackColor = AppTheme.Background
         };
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 140F)); // رأس الفاتورة
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 64F));  // سطر الإضافة
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 170F)); // رأس الفاتورة
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 86F));  // سطر الإضافة
         root.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));  // الشبكة
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 130F)); // الإجماليات
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 46F));  // شريط الأزرار
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 150F)); // الإجماليات
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 54F));  // شريط الأزرار
 
         root.Controls.Add(BuildHeaderPanel(),  0, 0);
         root.Controls.Add(BuildAddLinePanel(), 0, 1);
@@ -127,47 +127,72 @@ internal sealed class PurchaseInvoiceDialog : Form
     {
         var card = AppTheme.CreateCard();
         card.Dock = DockStyle.Fill;
+        card.Padding = new Padding(18, 16, 18, 14);
 
         var tbl = new TableLayoutPanel
         {
-            Dock = DockStyle.Fill, ColumnCount = 6, RowCount = 2
+            Dock = DockStyle.Fill, ColumnCount = 6, RowCount = 4,
+            RightToLeft = RightToLeft.Yes
         };
         for (int i = 0; i < 6; i++)
             tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 16.6F));
-        tbl.RowStyles.Add(new RowStyle(SizeType.Percent, 50F));
-        tbl.RowStyles.Add(new RowStyle(SizeType.Percent, 50F));
+        tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 34F));
+        tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 26F));
+        tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 24F));
+        tbl.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+
+        var headerLbl = new Label
+        {
+            Text = "بيانات فاتورة الشراء",
+            Dock = DockStyle.Fill,
+            Font = new Font("Tahoma", 15F, FontStyle.Bold),
+            ForeColor = AppTheme.Primary,
+            TextAlign = ContentAlignment.MiddleRight
+        };
+        var subLbl = new Label
+        {
+            Text = "أدخل بيانات المورد والشراء بشكل منظم، ثم أضف السطور قبل الحفظ أو الاعتماد.",
+            Dock = DockStyle.Fill,
+            Font = new Font("Tahoma", 9F),
+            ForeColor = AppTheme.MutedText,
+            TextAlign = ContentAlignment.MiddleRight
+        };
+        tbl.Controls.Add(headerLbl, 0, 0);
+        tbl.Controls.Add(subLbl, 0, 1);
+        tbl.SetColumnSpan(headerLbl, 6);
+        tbl.SetColumnSpan(subLbl, 6);
 
         // الرقم
-        tbl.Controls.Add(AppTheme.CreateFieldLabel("رقم الفاتورة:"), 0, 0);
+        tbl.Controls.Add(AppTheme.CreateFieldLabel("رقم الفاتورة:"), 0, 2);
         _numBox.Dock = DockStyle.Fill; _numBox.ReadOnly = true;
-        tbl.Controls.Add(_numBox, 0, 1);
+        tbl.Controls.Add(_numBox, 0, 3);
 
         // التاريخ
-        tbl.Controls.Add(AppTheme.CreateFieldLabel("التاريخ:"), 1, 0);
+        tbl.Controls.Add(AppTheme.CreateFieldLabel("التاريخ:"), 1, 2);
         _datePicker.Dock = DockStyle.Fill; _datePicker.Value = DateTime.Today;
-        tbl.Controls.Add(_datePicker, 1, 1);
+        tbl.Controls.Add(_datePicker, 1, 3);
 
         // المورد
-        tbl.Controls.Add(AppTheme.CreateFieldLabel("المورد: *"), 2, 0);
+        tbl.Controls.Add(AppTheme.CreateFieldLabel("المورد: *"), 2, 2);
         _supplierCombo.Dock = DockStyle.Fill;
-        tbl.Controls.Add(_supplierCombo, 2, 1);
+        tbl.Controls.Add(_supplierCombo, 2, 3);
 
         // المستودع
-        tbl.Controls.Add(AppTheme.CreateFieldLabel("المستودع: *"), 3, 0);
+        tbl.Controls.Add(AppTheme.CreateFieldLabel("المستودع: *"), 3, 2);
         _warehouseCombo.Dock = DockStyle.Fill;
-        tbl.Controls.Add(_warehouseCombo, 3, 1);
+        tbl.Controls.Add(_warehouseCombo, 3, 3);
 
         // طريقة الدفع
-        tbl.Controls.Add(AppTheme.CreateFieldLabel("طريقة الدفع:"), 4, 0);
+        tbl.Controls.Add(AppTheme.CreateFieldLabel("طريقة الدفع:"), 4, 2);
         _paymentCombo.Dock = DockStyle.Fill;
         _paymentCombo.Items.AddRange(new object[] { "نقدي", "آجل", "شيك" });
         _paymentCombo.SelectedIndex = 0;
-        tbl.Controls.Add(_paymentCombo, 4, 1);
+        tbl.Controls.Add(_paymentCombo, 4, 3);
 
         // ملاحظات
-        tbl.Controls.Add(AppTheme.CreateFieldLabel("ملاحظات:"), 5, 0);
+        tbl.Controls.Add(AppTheme.CreateFieldLabel("ملاحظات:"), 5, 2);
         _notesBox.Dock = DockStyle.Fill;
-        tbl.Controls.Add(_notesBox, 5, 1);
+        tbl.Controls.Add(_notesBox, 5, 3);
 
         card.Controls.Add(tbl);
         return card;
@@ -177,13 +202,33 @@ internal sealed class PurchaseInvoiceDialog : Form
     {
         var card = AppTheme.CreateCard();
         card.Dock = DockStyle.Fill;
-        card.Padding = new Padding(4, 2, 4, 2);
+        card.Padding = new Padding(14, 12, 14, 10);
+
+        var layout = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = 2,
+            BackColor = AppTheme.Surface
+        };
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 28F));
+        layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+
+        var title = new Label
+        {
+            Text = "إضافة سطر إلى الفاتورة",
+            Dock = DockStyle.Fill,
+            Font = new Font("Tahoma", 12F, FontStyle.Bold),
+            ForeColor = AppTheme.Primary,
+            TextAlign = ContentAlignment.MiddleRight
+        };
 
         var flow = new FlowLayoutPanel
         {
             Dock = DockStyle.Fill,
             FlowDirection = FlowDirection.RightToLeft,
-            WrapContents = false
+            WrapContents = false,
+            Padding = new Padding(0, 8, 0, 0)
         };
 
         _itemSearchBox.Width = 300; _itemSearchBox.Margin = new Padding(4, 6, 4, 0);
@@ -213,7 +258,9 @@ internal sealed class PurchaseInvoiceDialog : Form
         flow.Controls.Add(_itemSearchBtn);
         flow.Controls.Add(_itemSearchBox);
 
-        card.Controls.Add(flow);
+        layout.Controls.Add(title, 0, 0);
+        layout.Controls.Add(flow, 0, 1);
+        card.Controls.Add(layout);
         return card;
     }
 
@@ -237,7 +284,10 @@ internal sealed class PurchaseInvoiceDialog : Form
         _linesGrid.ColumnHeadersDefaultCellStyle.BackColor = AppTheme.Primary;
         _linesGrid.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
         _linesGrid.ColumnHeadersDefaultCellStyle.Font      = new Font("Tahoma", 9.5F, FontStyle.Bold);
+        _linesGrid.ColumnHeadersDefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+        _linesGrid.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
         _linesGrid.EnableHeadersVisualStyles = false;
+        _linesGrid.RowTemplate.Height = 36;
 
         _linesGrid.Columns.Add(new DataGridViewTextBoxColumn { Name = "colIdx",   HeaderText = "#",       Width = 40, FillWeight = 3 });
         _linesGrid.Columns.Add(new DataGridViewTextBoxColumn { Name = "colCode",  HeaderText = "الكود",   FillWeight = 8  });
@@ -266,10 +316,12 @@ internal sealed class PurchaseInvoiceDialog : Form
     {
         var card = AppTheme.CreateCard();
         card.Dock = DockStyle.Fill;
+        card.Padding = new Padding(16, 14, 16, 10);
 
         var tbl = new TableLayoutPanel
         {
-            Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 3
+            Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 3,
+            RightToLeft = RightToLeft.Yes
         };
         tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 60F));
         tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 160F));
@@ -336,7 +388,7 @@ internal sealed class PurchaseInvoiceDialog : Form
         // نضيف باقي العناصر مباشرة فوق الكارد بـ FlowLayout
         var bottomFlow = new FlowLayoutPanel
         {
-            Dock = DockStyle.Bottom, Height = 42,
+            Dock = DockStyle.Bottom, Height = 46,
             FlowDirection = FlowDirection.RightToLeft, WrapContents = false
         };
         bottomFlow.Controls.Add(AppTheme.CreateFieldLabel("المدفوع:"));
@@ -355,6 +407,10 @@ internal sealed class PurchaseInvoiceDialog : Form
 
     private Control BuildButtonBar()
     {
+        var wrap = AppTheme.CreateCard();
+        wrap.Dock = DockStyle.Fill;
+        wrap.Padding = new Padding(12, 8, 12, 8);
+
         var bar = new FlowLayoutPanel
         {
             Dock = DockStyle.Fill, FlowDirection = FlowDirection.RightToLeft,
@@ -376,7 +432,8 @@ internal sealed class PurchaseInvoiceDialog : Form
         bar.Controls.Add(_approveBtn);
         bar.Controls.Add(_saveDraftBtn);
         bar.Controls.Add(_feedbackLbl);
-        return bar;
+        wrap.Controls.Add(bar);
+        return wrap;
     }
 
     // ══════════════════════════════════════════════════════════

@@ -11,12 +11,24 @@ internal class TreasuryRepository
     public List<Safe> GetSafes()
     {
         using var conn = DatabaseConnection.CreateConnection();
-        const string sql = """
-            SELECT id, COALESCE(name,''), COALESCE(name_ar,''),
-                   COALESCE(balance,0), COALESCE(is_default,false), COALESCE(is_active,true)
+        bool hasNameAr    = HasColumn(conn, "public", "safes", "name_ar");
+        bool hasIsDefault = HasColumn(conn, "public", "safes", "is_default");
+        bool hasIsActive  = HasColumn(conn, "public", "safes", "is_active");
+
+        string nameArExpr    = hasNameAr    ? "COALESCE(name_ar,'')"      : "COALESCE(name,'')";
+        string isDefaultExpr = hasIsDefault ? "COALESCE(is_default,false)" : "false";
+        string isActiveExpr  = hasIsActive  ? "COALESCE(is_active,true)"   : "true";
+        string whereClause   = hasIsActive  ? "WHERE is_active = true"     : string.Empty;
+        string orderBy       = hasIsDefault
+            ? $"ORDER BY {isDefaultExpr} DESC, {nameArExpr}"
+            : $"ORDER BY {nameArExpr}";
+
+        string sql = $"""
+            SELECT id, COALESCE(name,''), {nameArExpr},
+                   COALESCE(balance,0), {isDefaultExpr}, {isActiveExpr}
             FROM public.safes
-            WHERE is_active = true
-            ORDER BY is_default DESC, name_ar
+            {whereClause}
+            {orderBy}
             """;
         using var cmd = new NpgsqlCommand(sql, conn);
         using var r   = cmd.ExecuteReader();
@@ -32,6 +44,24 @@ internal class TreasuryRepository
                 IsActive  = r.GetBoolean(5)
             });
         return list;
+    }
+
+    private static bool HasColumn(NpgsqlConnection conn, string schema, string table, string column)
+    {
+        const string sql = """
+            SELECT EXISTS (
+                SELECT 1
+                FROM information_schema.columns
+                WHERE table_schema = @schema
+                  AND table_name   = @table
+                  AND column_name  = @column
+            )
+            """;
+        using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("schema", schema);
+        cmd.Parameters.AddWithValue("table", table);
+        cmd.Parameters.AddWithValue("column", column);
+        return (bool)(cmd.ExecuteScalar() ?? false);
     }
 
     public decimal GetSafeBalance(int safeId)

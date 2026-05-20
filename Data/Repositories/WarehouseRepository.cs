@@ -219,8 +219,8 @@ internal class WarehouseRepository
                    COALESCE(u1.full_name,''), COALESCE(u2.full_name,'')
             FROM public.inventory_counts ic
             JOIN public.warehouses w ON w.id = ic.warehouse_id
-            LEFT JOIN public.users u1 ON u1.id = ic.created_by
-            LEFT JOIN public.users u2 ON u2.id = ic.approved_by
+            LEFT JOIN auth.users u1 ON u1.id = ic.created_by
+            LEFT JOIN auth.users u2 ON u2.id = ic.approved_by
             WHERE 1=1
             """;
         if (warehouseId.HasValue) sql += " AND ic.warehouse_id = @wh";
@@ -383,8 +383,8 @@ internal class WarehouseRepository
             FROM public.warehouse_transfers t
             JOIN public.warehouses wf ON wf.id = t.from_warehouse
             JOIN public.warehouses wt ON wt.id = t.to_warehouse
-            LEFT JOIN public.users uc ON uc.id = t.created_by
-            LEFT JOIN public.users ua ON ua.id = t.approved_by
+            LEFT JOIN auth.users uc ON uc.id = t.created_by
+            LEFT JOIN auth.users ua ON ua.id = t.approved_by
             ORDER BY t.transfer_date DESC, t.id DESC
             """;
         using var cmd = new NpgsqlCommand(sql, conn);
@@ -586,8 +586,8 @@ internal class WarehouseRepository
                    COALESCE(uc.full_name,''), COALESCE(ua.full_name,'')
             FROM public.damage_records d
             JOIN public.warehouses w ON w.id = d.warehouse_id
-            LEFT JOIN public.users uc ON uc.id = d.created_by
-            LEFT JOIN public.users ua ON ua.id = d.approved_by
+            LEFT JOIN auth.users uc ON uc.id = d.created_by
+            LEFT JOIN auth.users ua ON ua.id = d.approved_by
             WHERE 1=1
             """;
         if (warehouseId.HasValue) sql += " AND d.warehouse_id = @wh";

@@ -53,11 +53,11 @@ internal sealed class PurchaseInvoicesView : UserControl
         var root = new TableLayoutPanel
         {
             Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3,
-            Padding = new Padding(8), BackColor = AppTheme.Surface
+            Padding = new Padding(14), BackColor = AppTheme.Background
         };
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 54F));
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 136F));
         root.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 36F));
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 40F));
 
         root.Controls.Add(BuildToolbar(), 0, 0);
         root.Controls.Add(BuildGrid(),    0, 1);
@@ -67,32 +67,80 @@ internal sealed class PurchaseInvoicesView : UserControl
 
     private Control BuildToolbar()
     {
-        var bar = new FlowLayoutPanel
+        var wrap = AppTheme.CreateCard();
+        wrap.Dock    = DockStyle.Fill;
+        wrap.Padding = new Padding(16, 10, 16, 10);
+
+        // ── صف 1: العنوان ──────────────────────────────────
+        var titleLbl = new Label
         {
-            Dock = DockStyle.Fill, FlowDirection = FlowDirection.RightToLeft,
-            WrapContents = false
+            Text      = "إدارة فواتير المشتريات",
+            Dock      = DockStyle.Top,
+            Height    = 34,
+            Font      = new Font("Tahoma", 14F, FontStyle.Bold),
+            ForeColor = AppTheme.Primary,
+            TextAlign = ContentAlignment.MiddleRight,
+            Padding   = new Padding(0, 2, 0, 0)
         };
 
-        AppTheme.StylePrimaryButton(_newBtn);  _newBtn.Width  = 160; _newBtn.Margin  = new Padding(4, 4, 4, 0);
-        AppTheme.StyleSecondaryButton(_openBtn); _openBtn.Width = 140; _openBtn.Margin = new Padding(4, 4, 4, 0);
-        AppTheme.StyleSecondaryButton(_searchBtn); _searchBtn.Width = 90; _searchBtn.Margin = new Padding(4, 4, 4, 0);
+        // ── صف 2: الوصف ────────────────────────────────────
+        var subLbl = new Label
+        {
+            Text      = "فلترة سريعة، عرض واضح، والوصول المباشر لإنشاء أو فتح الفاتورة.",
+            Dock      = DockStyle.Top,
+            Height    = 22,
+            Font      = new Font("Tahoma", 9F),
+            ForeColor = AppTheme.MutedText,
+            TextAlign = ContentAlignment.MiddleRight
+        };
 
-        var fromLbl = AppTheme.CreateFieldLabel("من:"); fromLbl.Margin = new Padding(10, 8, 4, 0);
-        _fromPicker.Width = 110; _fromPicker.Margin = new Padding(4, 4, 4, 0);
-        var toLbl = AppTheme.CreateFieldLabel("إلى:"); toLbl.Margin = new Padding(8, 8, 4, 0);
-        _toPicker.Width = 110; _toPicker.Margin = new Padding(4, 4, 4, 0);
-        var statLbl = AppTheme.CreateFieldLabel("الحالة:"); statLbl.Margin = new Padding(8, 8, 4, 0);
-        _statusCombo.Width = 100; _statusCombo.Margin = new Padding(4, 4, 4, 0);
-        _supplierBox.Width = 160; _supplierBox.Margin = new Padding(4, 4, 4, 0);
+        // ── صف 3: شريط الأدوات ────────────────────────────
+        var bar = new FlowLayoutPanel
+        {
+            Dock          = DockStyle.Top,
+            Height        = 40,
+            FlowDirection = FlowDirection.RightToLeft,
+            WrapContents  = false,
+            AutoSize      = false,
+            Padding       = new Padding(0, 4, 0, 0)
+        };
+
+        AppTheme.StylePrimaryButton(_newBtn);
+        _newBtn.Width  = 150; _newBtn.Height = 32; _newBtn.Margin = new Padding(4, 0, 0, 0);
+
+        AppTheme.StyleSecondaryButton(_openBtn);
+        _openBtn.Width = 130; _openBtn.Height = 32; _openBtn.Margin = new Padding(4, 0, 0, 0);
+
+        AppTheme.StyleSecondaryButton(_searchBtn);
+        _searchBtn.Width = 80; _searchBtn.Height = 32; _searchBtn.Margin = new Padding(4, 0, 0, 0);
+
+        var fromLbl  = AppTheme.CreateFieldLabel("من:");
+        fromLbl.Margin = new Padding(8, 8, 2, 0);
+        _fromPicker.Width  = 108; _fromPicker.Height = 28; _fromPicker.Margin = new Padding(2, 2, 0, 0);
+
+        var toLbl = AppTheme.CreateFieldLabel("إلى:");
+        toLbl.Margin = new Padding(8, 8, 2, 0);
+        _toPicker.Width    = 108; _toPicker.Height   = 28; _toPicker.Margin   = new Padding(2, 2, 0, 0);
+
+        var statLbl = AppTheme.CreateFieldLabel("الحالة:");
+        statLbl.Margin = new Padding(8, 8, 2, 0);
+        _statusCombo.Width = 95; _statusCombo.Margin = new Padding(2, 2, 0, 0);
+
+        _supplierBox.Width = 150; _supplierBox.Margin = new Padding(2, 2, 0, 0);
 
         bar.Controls.Add(_newBtn);
         bar.Controls.Add(_openBtn);
         bar.Controls.Add(_searchBtn);
-        bar.Controls.Add(statLbl);   bar.Controls.Add(_statusCombo);
-        bar.Controls.Add(toLbl);     bar.Controls.Add(_toPicker);
-        bar.Controls.Add(fromLbl);   bar.Controls.Add(_fromPicker);
+        bar.Controls.Add(statLbl);    bar.Controls.Add(_statusCombo);
+        bar.Controls.Add(toLbl);      bar.Controls.Add(_toPicker);
+        bar.Controls.Add(fromLbl);    bar.Controls.Add(_fromPicker);
         bar.Controls.Add(_supplierBox);
-        return bar;
+
+        // ترتيب الإضافة معكوس (Bottom to Top) مع Dock=Top
+        wrap.Controls.Add(bar);
+        wrap.Controls.Add(subLbl);
+        wrap.Controls.Add(titleLbl);
+        return wrap;
     }
 
     private Control BuildGrid()
@@ -109,7 +157,10 @@ internal sealed class PurchaseInvoicesView : UserControl
         _grid.ColumnHeadersDefaultCellStyle.BackColor = AppTheme.Primary;
         _grid.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
         _grid.ColumnHeadersDefaultCellStyle.Font = new Font("Tahoma", 9.5F, FontStyle.Bold);
+        _grid.ColumnHeadersDefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
         _grid.EnableHeadersVisualStyles = false;
+        _grid.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+        _grid.RowTemplate.Height = 36;
 
         _grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "colId",    HeaderText = "#",           Width = 50, FillWeight = 4 });
         _grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "colNum",   HeaderText = "رقم الفاتورة",FillWeight = 12 });
@@ -131,10 +182,10 @@ internal sealed class PurchaseInvoicesView : UserControl
         var p = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, BackColor = AppTheme.Surface };
         p.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
         p.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        _feedbackLbl.Dock = DockStyle.Fill; _feedbackLbl.Font = AppTheme.SmallFont;
+        _feedbackLbl.Dock = DockStyle.Fill; _feedbackLbl.Font = new Font("Tahoma", 8.5F);
         _feedbackLbl.ForeColor = AppTheme.MutedText; _feedbackLbl.TextAlign = ContentAlignment.MiddleRight;
         _feedbackLbl.Text = "انقر نقراً مزدوجاً لفتح فاتورة — الفواتير المعتمدة لا يمكن تعديلها.";
-        _countLbl.Font = AppTheme.SmallFont; _countLbl.ForeColor = AppTheme.MutedText;
+        _countLbl.Font = new Font("Tahoma", 8.5F); _countLbl.ForeColor = AppTheme.MutedText;
         _countLbl.TextAlign = ContentAlignment.MiddleLeft; _countLbl.AutoSize = true;
         p.Controls.Add(_feedbackLbl, 0, 0); p.Controls.Add(_countLbl, 1, 0);
         return p;

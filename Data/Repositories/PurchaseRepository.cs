@@ -1,4 +1,5 @@
 using Npgsql;
+using NpgsqlTypes;
 using supermarket.Models;
 
 namespace supermarket.Data.Repositories;
@@ -41,10 +42,10 @@ internal class PurchaseRepository
             ORDER BY pi.invoice_date DESC, pi.id DESC
             """;
         using var cmd = new NpgsqlCommand(sql, conn);
-        cmd.Parameters.AddWithValue("from",       (object?)from       ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("to",         (object?)to         ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("status",     (object?)status     ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("supplierId", (object?)supplierId ?? DBNull.Value);
+        cmd.Parameters.Add(new NpgsqlParameter("from",       NpgsqlTypes.NpgsqlDbType.Date)    { Value = (object?)from       ?? DBNull.Value });
+        cmd.Parameters.Add(new NpgsqlParameter("to",         NpgsqlTypes.NpgsqlDbType.Date)    { Value = (object?)to         ?? DBNull.Value });
+        cmd.Parameters.Add(new NpgsqlParameter("status",     NpgsqlTypes.NpgsqlDbType.Text)    { Value = (object?)status     ?? DBNull.Value });
+        cmd.Parameters.Add(new NpgsqlParameter("supplierId", NpgsqlTypes.NpgsqlDbType.Integer) { Value = (object?)supplierId ?? DBNull.Value });
         using var r = cmd.ExecuteReader();
         var list = new List<PurchaseInvoice>();
         while (r.Read()) list.Add(MapInvoice(r));
